@@ -11,11 +11,11 @@ Canonical enum: Go `layers/parallel/train_mode.go` (`TrainMode`).
 and [`welvet.cpp/docs/TRAINING_CHECKLIST.md`](../../welvet.cpp/docs/TRAINING_CHECKLIST.md).
 Same cases / wires / column meanings; status here is **ROCm** only. cuda/metal/cpp checkmarks do **not** transfer credit.
 
-**Current engine:** `0.27` (leaf FormatNone forwards ×22 + seqmix; **Dense NormalBP** signed — **27 / 100** on the engine board).
-M0 host + HIP leaf + Dense NormalBP (`WDB1`/`WVN1`) + `go_v_rocm` suites signed 2026-11-03.
-Next: RMSNorm…Stack NormalBP → **0.51**.
+**Current engine:** `0.27` (leaf FormatNone ×22 + seqmix; **Dense + RMSNorm NormalBP** signed — **27 / 100** on the engine board).
+M0 host + HIP leaf + Dense/RMSNorm NormalBP (`WDB1`/`WVN1`, `WRB1`/`WRV1`) + `go_v_rocm` suites signed 2026-11-03.
+Next: LayerNorm…Stack NormalBP → **0.51**.
 **Host note:** this box has no ROCm HSA device (Polaris/Picasso); re-run
-`./scripts/linux_build_w2a.sh --leaf-fwd-all` and `--dense-train` on a supported AMD GPU to confirm exact_bit.
+`./scripts/linux_build_w2a.sh --leaf-fwd-all`, `--dense-train`, and `--rmsnorm-train` on a supported AMD GPU to confirm exact_bit.
 Climb toward welvet.cuda **0.79**.
 
 ---
@@ -36,6 +36,7 @@ Validation lives in sibling **w2a** (`go_v_rocm`), not in this tree — same pat
 ./scripts/linux_build_w2a.sh --smoke
 ./scripts/linux_build_w2a.sh --leaf-fwd-all   # all leaf FormatNone forwards (signed)
 ./scripts/linux_build_w2a.sh --dense-train    # Dense NormalBP leaf+vol (signed)
+./scripts/linux_build_w2a.sh --rmsnorm-train  # RMSNorm NormalBP leaf+vol (signed)
 # as suites land:
 # ./scripts/linux_build_w2a.sh --normalbp-all
 # ./scripts/linux_build_w2a.sh --training-all
@@ -90,7 +91,7 @@ Not signed yet. Same scope as welvet.metal when the ROCm path lands: Freeze/Shad
 | Path | Execution today |
 |---|---|
 | Leaf FormatNone forward | ✅ Dense…Parallel + seqmix (HIP) — `go_v_rocm` leaf suites signed |
-| NormalBP layers | 🟡 Dense signed (`TestGoVRocmDenseTrain`); other families open → 0.51 |
+| NormalBP layers | 🟡 Dense + RMSNorm signed; other families open → 0.51 |
 | MSE / MSEGrad | ✅ with Dense NormalBP (finite loss band) |
 | SGD and native storage updates | ✅ FormatNone Dense SGD (leaf + volume) |
 | GDN | ✅ f32 leaf forward signed; NormalBP open |
@@ -109,7 +110,7 @@ measured bands before signing ✅. GDN / Softmax / MHA may use the same spectrum
 
 Checkmarks below indicate validated ROCm correctness under these bands, not a speed
 win or completion of GPU residency/performance work. Unsupported and unverified
-modes remain unchecked. **Leaf FormatNone forward + Dense NormalBP signed; other NormalBP+ below are open.**
+modes remain unchecked. **Leaf FormatNone forward + Dense/RMSNorm NormalBP signed; other NormalBP+ below are open.**
 
 ---
 
@@ -162,15 +163,17 @@ Run: `./scripts/linux_build_w2a.sh --rmsnorm-train`
 Wire: `WRB1`/`WRBO` (leaf), `WRV1`/`WRVO` (volume). Exact tensor bits vs Go, subject to the precision policy above.
 Timing: same `--bench=N` / spd%Δ convention as Dense (leaf mount-once + γ reset; no remount each iter).
 
+**Signed 2026-11-03:** HIP RMSNorm NormalBP + volume Grid path + `go_v_rocm` `TestGoVRocmRMSNormTrain` (7 cases). Engine stays **0.27** until full NormalBP Mode 1 → **0.51**. Re-confirm exact_bit on a ROCm-capable GPU when available.
+
 | # | Case | Status | Notes |
 |---|---|:---:|---|
-| 1 | Leaf Float32 (dX/dγ/γ/loss) | [ ] | exact_bit + speed |
-| 2 | Leaf × all 34 dtypes | [ ] | exact_bit + speed table |
-| 3 | Volume 1×1×1×1 Float32 | [ ] | inside-node + speed |
-| 4 | Volume 1×1×1×2 chain Float32 | [ ] | multi-layer cell + speed |
-| 5 | Volume 1×1×1×1 × all 34 dtypes | [ ] | + speed table |
-| 6 | Volume 2×2×2×1 Float32 | [ ] | 3D volumetric + speed |
-| 7 | Volume 2×1×1×1 × all 34 dtypes | [ ] | multi-cell ×34 + speed table |
+| 1 | Leaf Float32 (dX/dγ/γ/loss) | [x] | exact_bit + speed |
+| 2 | Leaf × all 34 dtypes | [x] | exact_bit + speed table |
+| 3 | Volume 1×1×1×1 Float32 | [x] | inside-node + speed |
+| 4 | Volume 1×1×1×2 chain Float32 | [x] | multi-layer cell + speed |
+| 5 | Volume 1×1×1×1 × all 34 dtypes | [x] | + speed table |
+| 6 | Volume 2×2×2×1 Float32 | [x] | 3D volumetric + speed |
+| 7 | Volume 2×1×1×1 × all 34 dtypes | [x] | multi-cell ×34 + speed table |
 
 ## w2a Go↔ROCm (LayerNorm NormalBP) — sign-off evidence
 
@@ -868,7 +871,7 @@ Chain-rule Backward + ApplyGradSGD. Start here. Dense first.
 | Layer | Inside node | 3D volumetric | Fully signed off | Ver |
 |---|:---:|:---:|:---:|---|
 | Dense | [x] | [x] | [x] | 0.27 |
-| RMSNorm | [ ] | [ ] | [ ] | 0.51 |
+| RMSNorm | [x] | [x] | [x] | 0.27 |
 | LayerNorm | [ ] | [ ] | [ ] | 0.51 |
 | SwiGLU | [ ] | [ ] | [ ] | 0.51 |
 | Softmax | [ ] | [ ] | [ ] | 0.51 |
@@ -2008,7 +2011,7 @@ Run: `./scripts/linux_build_w2a.sh --training-25-29-all`.
 | Tag / date | What landed |
 |---|---|
 | **0.00** (M0) | ROCm host scaffold (device / buffers / smoke saxpy / C ABI / gaps). Engine board **0 / 100**. Training checklist mirrored from welvet.metal — **all rows unchecked**. |
-| **0.27** | Leaf FormatNone forwards ×22 + seqmix; Dense NormalBP leaf+vol (`WDB1`/`WVN1`, 7 cases) signed 2026-11-03. Engine board **27 / 100**. |
+| **0.27** | Leaf FormatNone forwards ×22 + seqmix; Dense + RMSNorm NormalBP leaf+vol (`WDB1`/`WVN1`, `WRB1`/`WRV1`, 7+7 cases) signed 2026-11-03. Engine board **27 / 100**. |
 | **0.32** | NormalBP RNN + LSTM leaf+vol (`RNB1`/`RNV1`, `LSB1`/`LSV1`) via Dense IH/HH / 4-gate BPTT. Engine board **32 / 100**. |
 | **0.51** | NormalBP Mode 1 fully signed (23 families leaf+vol). Engine board **51 / 100**. |
 | **0.52** | StepBP Line FamilyBP (`STB1`) + Dense MeshBP (`MBP1`) + ModeMeshBP shared vols; `TestGoVRocmStepBPTrain` PASS. Engine board **52 / 100**. |
