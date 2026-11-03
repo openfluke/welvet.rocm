@@ -12,6 +12,11 @@ DEST="$WELVET_GO_ROOT/native/rocm/linux_x86_64"
 mkdir -p "$DEST" "$WELVET_GO_ROOT/native/rocm/include"
 cp "$ROOT/build/libwelvet_rocm.so" "$DEST/libwelvet_rocm.so"
 cp "$ROOT/include/welvet_c.h" "$WELVET_GO_ROOT/native/rocm/include/welvet_rocm.h"
+cp "$ROOT/include/welvet_c.h" "$DEST/welvet_c.h"
+(
+  cd "$DEST"
+  sha256sum libwelvet_rocm.so > SHA256SUMS
+)
 VERSION="$("$ROOT/build/welvet_dense_fwd" --version)"
 {
   echo "engine=welvet.rocm"
