@@ -7,12 +7,12 @@ Execution is **ROCm compute + resident device buffers**. Host orchestration is C
 
 | | |
 |--|--|
-| **Version** | **`0.27`** (leaf FormatNone forwards ×22 + seqmix) |
+| **Version** | **`0.27`** (leaf FormatNone ×22 + seqmix; Dense NormalBP signed) |
 | **Engine board** | **27 / 100** |
 | **Compute** | AMD GPU (ROCm / HIP) — primary · CUDA / Metal / CPU siblings remain separate repos |
 | **Parity reference** | [welvet](https://github.com/openfluke/welvet) Go |
 | **CUDA sibling (target ladder)** | [welvet.cuda](https://github.com/openfluke/welvet.cuda) **0.79** — **score not inherited** |
-| **Validation** | [w2a](https://github.com/openfluke/w2a) `Go_v_Rocm` leaf FormatNone×34 |
+| **Validation** | [w2a](https://github.com/openfluke/w2a) `Go_v_Rocm` leaf + Dense NormalBP |
 
 **This README is the runway.** Tick ⬜ → 🚧 → ✅ as gates land.
 **Training port detail** lives in [docs/TRAINING_CHECKLIST.md](docs/TRAINING_CHECKLIST.md)
@@ -27,6 +27,7 @@ Gap census: [GAPS.md](GAPS.md). Version formula: [VERSIONING.md](VERSIONING.md).
 ./build/welvet_dense_fwd --version   # 0.27
 ./build/welvet_dense_fwd --gaps
 ./scripts/linux_build_w2a.sh --leaf-fwd-all
+./scripts/linux_build_w2a.sh --dense-train
 ```
 
 | Slice | Status |
@@ -34,7 +35,8 @@ Gap census: [GAPS.md](GAPS.md). Version formula: [VERSIONING.md](VERSIONING.md).
 | Linux x86_64 CMake → `libwelvet_rocm.so` | ✅ |
 | HIP device / buffer / smoke saxpy | ✅ |
 | Leaf FormatNone forward ×22 + seqmix (`go_v_rocm`) | ✅ signed **0.27** |
-| NormalBP … StepTweenSplitSparse (cuda 0.79 ladder) | ⬜ |
+| Dense NormalBP leaf+vol (`WDB1`/`WVN1`, 7 cases) | ✅ signed **0.27** |
+| Other NormalBP … StepTweenSplitSparse (cuda 0.79 ladder) | ⬜ |
 | CamSync / Freeze/Shadow / model | ⬜ |
 
 Climb the checklist toward **cuda 0.79**. Determinism testing is done in sibling

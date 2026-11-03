@@ -32,6 +32,7 @@ usage: $0 [flags]
   --parallel-fwd      Parallel forward
   --seqmix-fwd        seqmix smoke
   --leaf-fwd-all      all leaf FormatNone forward suites
+  --dense-train       Dense NormalBP leaf + volume (7 cases)
   --help
 EOF
 }
@@ -42,7 +43,7 @@ if [[ $# -gt 0 ]]; then
     --help|-h) usage; exit 0 ;;
     --smoke) MODE=smoke; shift ;;
     --gaps) MODE=gaps; shift ;;
-    --dense-fwd|--rmsnorm-fwd|--layernorm-fwd|--softmax-fwd|--swiglu-fwd|--embedding-fwd|--mha-fwd|--cnn-fwd|--convt-fwd|--rnn-fwd|--lstm-fwd|--sequential-fwd|--residual-fwd|--mamba-fwd|--metacognition-fwd|--gdn-fwd|--kmeans-fwd|--parallel-fwd|--seqmix-fwd|--leaf-fwd-all)
+    --dense-fwd|--rmsnorm-fwd|--layernorm-fwd|--softmax-fwd|--swiglu-fwd|--embedding-fwd|--mha-fwd|--cnn-fwd|--convt-fwd|--rnn-fwd|--lstm-fwd|--sequential-fwd|--residual-fwd|--mamba-fwd|--metacognition-fwd|--gdn-fwd|--kmeans-fwd|--parallel-fwd|--seqmix-fwd|--leaf-fwd-all|--dense-train)
       MODE="${1#--}"; shift ;;
     *)
       echo "unknown flag '$1'" >&2
@@ -118,6 +119,7 @@ case "$MODE" in
   parallel-fwd) run_go_test '^TestGoVRocmParallel$' ;;
   seqmix-fwd) run_go_test '^TestGoVRocmSeqmix$' ;;
   leaf-fwd-all) run_go_test '^TestGoVRocm(DenseForward|RMSNorm|LayerNorm|Softmax|SwiGLU|Embedding|MHA|CNN|ConvT|RNN|LSTM|Sequential|Residual|Mamba|Metacognition|GDN|KMeans|Parallel|Seqmix)$' ;;
+  dense-train) run_go_test '^TestGoVRocmDenseTrain$' ;;
   *)
     echo "unhandled mode: $MODE" >&2
     exit 2
