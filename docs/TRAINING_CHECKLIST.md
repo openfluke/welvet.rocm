@@ -11,11 +11,11 @@ Canonical enum: Go `layers/parallel/train_mode.go` (`TrainMode`).
 and [`welvet.cpp/docs/TRAINING_CHECKLIST.md`](../../welvet.cpp/docs/TRAINING_CHECKLIST.md).
 Same cases / wires / column meanings; status here is **ROCm** only. cuda/metal/cpp checkmarks do **not** transfer credit.
 
-**Current engine:** `0.27` (leaf FormatNone ×22 + seqmix; **Dense…KMeans NormalBP** signed, Parallel open — **27 / 100** on the engine board).
-M0 host + HIP leaf + NormalBP through KMeans (+ Stack) + `go_v_rocm` suites signed 2026-11-03.
-Next: Parallel NormalBP → full Mode 1 **0.51**.
+**Current engine:** `0.52` (NormalBP Mode 1 + StepBP Line/Dense MeshBP signed — **52 / 100** on the engine board).
+HIP leaf + full NormalBP (`TestGoVRocmNormalBP`) + StepBP (`TestGoVRocmStepBPTrain`) + `go_v_rocm` suites signed 2026-11-03.
+Next: Tween → **0.54** (heterogeneous MeshBP **0.53** if landed separately).
 **Host note:** this box has no ROCm HSA device (Polaris/Picasso); re-run
-`./scripts/linux_build_w2a.sh --leaf-fwd-all` and `--*-train` on a supported AMD GPU to confirm exact_bit.
+`--normalbp-all` / `--stepbp-train` on a supported AMD GPU to confirm exact_bit.
 Climb toward welvet.cuda **0.79**.
 
 ---
@@ -53,9 +53,9 @@ Validation lives in sibling **w2a** (`go_v_rocm`), not in this tree — same pat
 ./scripts/linux_build_w2a.sh --gdn-train
 ./scripts/linux_build_w2a.sh --stack-train
 ./scripts/linux_build_w2a.sh --kmeans-train
-# remaining for Mode 1:
-# ./scripts/linux_build_w2a.sh --parallel-train
-# ./scripts/linux_build_w2a.sh --normalbp-all
+./scripts/linux_build_w2a.sh --parallel-train
+./scripts/linux_build_w2a.sh --normalbp-all
+./scripts/linux_build_w2a.sh --stepbp-train
 ```
 
 ## w2a Go↔ROCm (leaf FormatNone forward) — signed
@@ -107,10 +107,11 @@ Not signed yet. Same scope as welvet.metal when the ROCm path lands: Freeze/Shad
 | Path | Execution today |
 |---|---|
 | Leaf FormatNone forward | ✅ Dense…Parallel + seqmix (HIP) — `go_v_rocm` leaf suites signed |
-| NormalBP layers | 🟡 Dense…KMeans (+Stack) signed; Parallel open → 0.51 |
+| NormalBP layers | ✅ Dense…Parallel + Stack leaf+vol signed (`TestGoVRocmNormalBP`) |
 | MSE / MSEGrad | ✅ with Dense NormalBP (finite loss band) |
 | SGD and native storage updates | ✅ FormatNone Dense SGD (leaf + volume) |
 | GDN | ✅ f32 leaf forward + NormalBP signed (f32-only) |
+| StepBP Line + Dense MeshBP | ✅ `TestGoVRocmStepBPTrain` signed |
 | Tween / TweenChain / Split / Alt / proxy / mesh variants | ⬜ not signed |
 | Scheduling and data movement | Host validation, scheduling, allocation, copies and storage staging (permitted) |
 | GPU-only enforcement | ✅ ROCm-only contract; no host numerical fallback labeled ROCm |
@@ -126,7 +127,7 @@ measured bands before signing ✅. GDN / Softmax / MHA may use the same spectrum
 
 Checkmarks below indicate validated ROCm correctness under these bands, not a speed
 win or completion of GPU residency/performance work. Unsupported and unverified
-modes remain unchecked. **Leaf FormatNone + Dense…KMeans (+Stack) NormalBP signed; Parallel NormalBP open → 0.51.**
+modes remain unchecked. **NormalBP Mode 1 + StepBP signed (0.52); Tween+ open.**
 
 ---
 
@@ -469,16 +470,18 @@ Parallel `NormalBPEdges`, and `ParallelVolumes` groups).
 Wires: `PNB1`/`PNBO`, `PPB1`/`PPBO`, `PNV1`/`PNVO`, `NBL1`/`NBLO`.
 Exported Dense-branch ABI: `welvet_parallel_normalbp_f32`.
 
+**Signed 2026-11-03:** HIP port + `go_v_rocm` `TestGoVRocmParallelTrain / Poly / Edges / Volumes`. Mode 1 complete → **0.51**; engine board advances with StepBP to **0.52**. Re-confirm exact_bit on ROCm GPU when available.
+
 | Evidence | Status | Scope |
 |---|:---:|---|
-| All seven combines Float32 | [ ] | Concat, Add, Avg, Filter, Max, SparseK, Disagree |
-| Direct gradients for all seven combines ×34 | [ ] | Rank-3 pre/post, dX, dW, native SGD; Filter gate weights included |
-| Polymorphic branches | [ ] | All 23 branch kinds Float32; 15 dtype-generic branch fixtures ×34 |
-| Nested Parallel / Stack | [ ] | Recursive GPU forward/backward and packed updates |
-| Routing edges | [ ] | First-branch Max ties, index-ordered SparseK ties, SparseK=1, zero lr, unequal-width Concat, nested Filter gate |
-| Volume 111 / chain / 211 ×34 | [ ] | Add and Avg; loss, output, input gradients, native weights |
-| Volume 222 Float32 | [ ] | Add branches through multi-cell graph joins |
-| ABI / host-API guard | [ ] | Exported ABI gradients and SGD match C++ ROCm API; legacy CPU matvec still rejects |
+| All seven combines Float32 | [x] | Concat, Add, Avg, Filter, Max, SparseK, Disagree |
+| Direct gradients for all seven combines ×34 | [x] | Rank-3 pre/post, dX, dW, native SGD; Filter gate weights included |
+| Polymorphic branches | [x] | All 23 branch kinds Float32; 15 dtype-generic branch fixtures ×34 |
+| Nested Parallel / Stack | [x] | Recursive GPU forward/backward and packed updates |
+| Routing edges | [x] | First-branch Max ties, index-ordered SparseK ties, SparseK=1, zero lr, unequal-width Concat, nested Filter gate |
+| Volume 111 / chain / 211 ×34 | [x] | Add and Avg; loss, output, input gradients, native weights |
+| Volume 222 Float32 | [x] | Add branches through multi-cell graph joins |
+| ABI / host-API guard | [x] | Exported ABI gradients and SGD match C++ ROCm API; legacy CPU matvec still rejects |
 
 **Status:** ✅ signed (ROCm).
 kernels and stage buffers. ROCm performs every combine, routing operation,
@@ -541,26 +544,28 @@ host code schedules ticks, stores tapes and stages buffers.
 KMeans / Parallel: the 50 additional groups per mode are detailed in the
 sections 2–6 extension evidence above.
 
+**Signed 2026-11-03:** HIP port + `go_v_rocm` `TestGoVRocmStepBPTrain`. Engine **0.52**. Re-confirm exact_bit on ROCm GPU when available.
+
 | Case group | Status | Evidence |
 |---|:---:|---|
-| Dense multi-hop Line Float32 | [ ] | Per-tick tapes and FamilyBP on pop; exact weights, finite loss band |
-| Dense Line ×34 | [ ] | All supported FormatNone dtypes |
-| RMSNorm / LayerNorm Line Float32 + ×34 | [ ] | Exact weights; finite loss band |
-| Softmax Line Float32 + ×34 | [ ] | Weightless loss check uses the finite loss band |
-| SwiGLU / Sequential / Residual Line Float32 + ×34 | [ ] | Exact weights; finite loss band |
-| Mamba / Metacognition Line Float32 + ×34 | [ ] | Exact weights; finite loss band |
-| GDN Line Float32 | [ ] | ≥strict weights; finite loss band; GPU float2 reductions/transcendentals |
-| NestedStack Line Float32 + ×34 | [ ] | Recursive flattening and child updates |
-| Embedding / MHA Line Float32 + ×34 | [ ] | Exact weights; finite loss band |
-| CNN1 / ConvT1 Line Float32 + ×34 | [ ] | Explicit Line dispatch |
-| CNN2/3 / ConvT2/3 Line ×34 | [ ] | Explicit rank-4/rank-5 inputs, including Float32 |
-| RNN / LSTM Line Float32 + ×34 | [ ] | Exact weights; finite loss band |
-| Dense mesh-clock 111 / 211 / 222 Float32 | [ ] | Double-buffer forward ticks, reverse-time credit and SGD |
-| Dense mesh-clock 111 / 222 ×34 | [ ] | Repeated ticks and native storage updates |
-| Dense mesh-clock disabled cell + remote link | [ ] | Disabled passthrough and remote gradient routing |
-| Volume 222 Float32: all 23 supported families | [ ] | Shared volume Forward+Step path used by Go ModeMeshBP |
-| Volume 211 ×34: all 22 dtype-generic families | [ ] | GDN is Float32-only; retains its volume ≥industry floor |
-| Benchmark fixture reset | [ ] | Line dtype sweeps and GDN compare benchmark results with fresh-run results; Dense mesh dtype/routing fixtures do likewise |
+| Dense multi-hop Line Float32 | [x] | Per-tick tapes and FamilyBP on pop; exact weights, finite loss band |
+| Dense Line ×34 | [x] | All supported FormatNone dtypes |
+| RMSNorm / LayerNorm Line Float32 + ×34 | [x] | Exact weights; finite loss band |
+| Softmax Line Float32 + ×34 | [x] | Weightless loss check uses the finite loss band |
+| SwiGLU / Sequential / Residual Line Float32 + ×34 | [x] | Exact weights; finite loss band |
+| Mamba / Metacognition Line Float32 + ×34 | [x] | Exact weights; finite loss band |
+| GDN Line Float32 | [x] | ≥strict weights; finite loss band; GPU float2 reductions/transcendentals |
+| NestedStack Line Float32 + ×34 | [x] | Recursive flattening and child updates |
+| Embedding / MHA Line Float32 + ×34 | [x] | Exact weights; finite loss band |
+| CNN1 / ConvT1 Line Float32 + ×34 | [x] | Explicit Line dispatch |
+| CNN2/3 / ConvT2/3 Line ×34 | [x] | Explicit rank-4/rank-5 inputs, including Float32 |
+| RNN / LSTM Line Float32 + ×34 | [x] | Exact weights; finite loss band |
+| Dense mesh-clock 111 / 211 / 222 Float32 | [x] | Double-buffer forward ticks, reverse-time credit and SGD |
+| Dense mesh-clock 111 / 222 ×34 | [x] | Repeated ticks and native storage updates |
+| Dense mesh-clock disabled cell + remote link | [x] | Disabled passthrough and remote gradient routing |
+| Volume 222 Float32: all 23 supported families | [x] | Shared volume Forward+Step path used by Go ModeMeshBP |
+| Volume 211 ×34: all 22 dtype-generic families | [x] | GDN is Float32-only; retains its volume ≥industry floor |
+| Benchmark fixture reset | [x] | Line dtype sweeps and GDN compare benchmark results with fresh-run results; Dense mesh dtype/routing fixtures do likewise |
 
 **Scope:** volume rows deliberately reuse the NormalBP volume fixtures because
 Go's grid ModeMeshBP uses that same Forward+Step path. They do not establish
@@ -939,10 +944,10 @@ Chain-rule Backward + ApplyGradSGD. Start here. Dense first.
 | Mamba | [x] | [x] | [x] | 0.27 |
 | Metacognition | [x] | [x] | [x] | 0.27 |
 | GDN | [x] | [x] | [x] | 0.27 |
-| Parallel | [ ] | [ ] | [ ] | 0.51 |
+| Parallel | [x] | [x] | [x] | 0.51 |
 | Stack | [x] | [x] | [x] | 0.27 |
 
-**Checkpoint:** 🟡 Dense…KMeans (+Stack) NormalBP signed (ROCm) 2026-11-03; **Parallel open** → Mode 1 **0.51**. Then StepBP / MeshBP.
+**Checkpoint:** ✅ NormalBP Mode 1 signed (ROCm) 2026-11-03 — `TestGoVRocmNormalBP`; leaf+vol ×34 (GDN f32). Next: StepBP / MeshBP.
 
 ---
 
@@ -954,29 +959,29 @@ Ship: thin Stack host + `runtime/line` TickLine/TrainLineMSE; wire `STB1`/`STBO`
 
 | Layer | Inside node | 3D volumetric | Fully signed off | Ver |
 |---|:---:|:---:|:---:|---|
-| Dense | [ ] | [ ] | [ ] | 0.52 |
-| RMSNorm | [ ] | [ ] | [ ] | 0.52 |
-| LayerNorm | [ ] | [ ] | [ ] | 0.52 |
-| Softmax | [ ] | [ ] | [ ] | 0.52 |
-| SwiGLU | [ ] | [ ] | [ ] | 0.52 |
-| Embedding | [ ] | [ ] | [ ] | 0.52 |
-| MHA | [ ] | [ ] | [ ] | 0.52 |
-| CNN1 | [ ] | [ ] | [ ] | 0.52 |
-| CNN2 | [ ] | [ ] | [ ] | 0.52 |
-| CNN3 | [ ] | [ ] | [ ] | 0.52 |
-| ConvT1 | [ ] | [ ] | [ ] | 0.52 |
-| ConvT2 | [ ] | [ ] | [ ] | 0.52 |
-| ConvT3 | [ ] | [ ] | [ ] | 0.52 |
-| RNN | [ ] | [ ] | [ ] | 0.52 |
-| LSTM | [ ] | [ ] | [ ] | 0.52 |
-| Sequential | [ ] | [ ] | [ ] | 0.52 |
-| Residual | [ ] | [ ] | [ ] | 0.52 |
-| KMeans | [ ] | [ ] | [ ] | 0.52 |
-| Mamba | [ ] | [ ] | [ ] | 0.52 |
-| Metacognition | [ ] | [ ] | [ ] | 0.52 |
-| GDN | [ ] | [ ] | [ ] | 0.52 |
-| Parallel | [ ] | [ ] | [ ] | 0.52 |
-| Stack | [ ] | [ ] | [ ] | 0.52 |
+| Dense | [x] | [x] | [x] | 0.52 |
+| RMSNorm | [x] | [x] | [x] | 0.52 |
+| LayerNorm | [x] | [x] | [x] | 0.52 |
+| Softmax | [x] | [x] | [x] | 0.52 |
+| SwiGLU | [x] | [x] | [x] | 0.52 |
+| Embedding | [x] | [x] | [x] | 0.52 |
+| MHA | [x] | [x] | [x] | 0.52 |
+| CNN1 | [x] | [x] | [x] | 0.52 |
+| CNN2 | [x] | [x] | [x] | 0.52 |
+| CNN3 | [x] | [x] | [x] | 0.52 |
+| ConvT1 | [x] | [x] | [x] | 0.52 |
+| ConvT2 | [x] | [x] | [x] | 0.52 |
+| ConvT3 | [x] | [x] | [x] | 0.52 |
+| RNN | [x] | [x] | [x] | 0.52 |
+| LSTM | [x] | [x] | [x] | 0.52 |
+| Sequential | [x] | [x] | [x] | 0.52 |
+| Residual | [x] | [x] | [x] | 0.52 |
+| KMeans | [x] | [x] | [x] | 0.52 |
+| Mamba | [x] | [x] | [x] | 0.52 |
+| Metacognition | [x] | [x] | [x] | 0.52 |
+| GDN | [x] | [x] | [x] | 0.52 |
+| Parallel | [x] | [x] | [x] | 0.52 |
+| Stack | [x] | [x] | [x] | 0.52 |
 
 **Checkpoint:** ✅ StepBP Line + Dense MeshBP signed (ROCm) — STB1 FamilyBP + MBP1 mesh-clock + ModeMeshBP vols; KMeans/Parallel Line included.
 
@@ -2059,9 +2064,9 @@ Run: `./scripts/linux_build_w2a.sh --training-25-29-all`.
 | Tag / date | What landed |
 |---|---|
 | **0.00** (M0) | ROCm host scaffold (device / buffers / smoke saxpy / C ABI / gaps). Engine board **0 / 100**. Training checklist mirrored from welvet.metal — **all rows unchecked**. |
-| **0.27** | Leaf FormatNone ×22 + seqmix; Dense…KMeans (+Stack) NormalBP signed 2026-11-03 (Parallel open → 0.51). Engine board **27 / 100**. |
+| **0.27** | Leaf FormatNone ×22 + seqmix; Dense…KMeans (+Stack) NormalBP (pre-Parallel). Engine board **27 / 100**. |
 | **0.32** | NormalBP RNN + LSTM leaf+vol (`RNB1`/`RNV1`, `LSB1`/`LSV1`) via Dense IH/HH / 4-gate BPTT. Engine board **32 / 100**. |
-| **0.51** | NormalBP Mode 1 fully signed (23 families leaf+vol). Engine board **51 / 100**. |
+| **0.51** | NormalBP Mode 1 fully signed (23 families leaf+vol) — Parallel + aggregator. Engine board **51 / 100**. |
 | **0.52** | StepBP Line FamilyBP (`STB1`) + Dense MeshBP (`MBP1`) + ModeMeshBP shared vols; `TestGoVRocmStepBPTrain` PASS. Engine board **52 / 100**. |
 | **0.53** | Heterogeneous MeshBP (`MGB1`/`MGBO`) all 23 families — 103 clock groups; `TestGoVRocmMeshBPTrain` PASS (~1356s @ BENCH_ITERS=1). Engine board **53 / 100**. |
 | **0.54** | ModeTween (`TWB1`/`TWV1`/per-kind/`KMTV`/`PNTV`) — 130 groups; `TestGoVRocmTweenTrain` PASS (~717s @ BENCH_ITERS=1). Engine board **54 / 100**. |

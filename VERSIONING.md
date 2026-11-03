@@ -7,9 +7,10 @@
 |-----|---------|
 | **0.00** | Bedrock — ROCm/HIP host scaffold; **0 / 100** on the engine board |
 | **0.13** | M1 Dense FormatNone×34 forward signed (Foundation 9 + Dense fwd 4) |
-| **0.27** | Leaf FormatNone ×22 + seqmix; Dense…KMeans (+Stack) NormalBP signed (Parallel open → 0.51) — **current** |
+| **0.27** | Leaf FormatNone ×22 + seqmix; Dense…KMeans (+Stack) NormalBP (pre-Parallel) |
 | **0.51** | NormalBP Mode 1 signed for all 23 layers (`TestGoVRocmNormalBP`) |
-| **0.52…0.79** | Same train-mode ladder as [welvet.cuda/VERSIONING.md](../welvet.cuda/VERSIONING.md) (`TestGoVRocm*` evidence) |
+| **0.52** | StepBP Line + Dense MeshBP (`TestGoVRocmStepBPTrain`) — **current** |
+| **0.53…0.79** | Same train-mode ladder as [welvet.cuda/VERSIONING.md](../welvet.cuda/VERSIONING.md) (`TestGoVRocm*` evidence) |
 | **0.x** | `round(earned)` from the engine table in [README.md](README.md) |
 | **1.0.0** | Engine board **100/100** — full Go parity on AMD GPU (FormatNone path + Model/IO + Systems + CamSync + peak fused, or explicit gate rewrite) |
 

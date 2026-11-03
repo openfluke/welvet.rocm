@@ -7,12 +7,12 @@ Execution is **ROCm compute + resident device buffers**. Host orchestration is C
 
 | | |
 |--|--|
-| **Version** | **`0.27`** (leaf FormatNone ×22 + seqmix; Dense…KMeans NormalBP signed; Parallel open) |
-| **Engine board** | **27 / 100** |
+| **Version** | **`0.52`** (NormalBP Mode 1 + StepBP Line/Dense MeshBP) |
+| **Engine board** | **52 / 100** |
 | **Compute** | AMD GPU (ROCm / HIP) — primary · CUDA / Metal / CPU siblings remain separate repos |
 | **Parity reference** | [welvet](https://github.com/openfluke/welvet) Go |
 | **CUDA sibling (target ladder)** | [welvet.cuda](https://github.com/openfluke/welvet.cuda) **0.79** — **score not inherited** |
-| **Validation** | [w2a](https://github.com/openfluke/w2a) `Go_v_Rocm` leaf + Dense…KMeans NormalBP |
+| **Validation** | [w2a](https://github.com/openfluke/w2a) `Go_v_Rocm` NormalBP + StepBP |
 
 **This README is the runway.** Tick ⬜ → 🚧 → ✅ as gates land.
 **Training port detail** lives in [docs/TRAINING_CHECKLIST.md](docs/TRAINING_CHECKLIST.md)
@@ -24,20 +24,21 @@ Gap census: [GAPS.md](GAPS.md). Version formula: [VERSIONING.md](VERSIONING.md).
 ```bash
 ./scripts/build_linux.sh
 ./build/example_rocm_smoke
-./build/welvet_dense_fwd --version   # 0.27
+./build/welvet_dense_fwd --version   # 0.52
 ./build/welvet_dense_fwd --gaps
 ./scripts/linux_build_w2a.sh --leaf-fwd-all
-./scripts/linux_build_w2a.sh --dense-train   # … through --kmeans-train / --stack-train
+./scripts/linux_build_w2a.sh --normalbp-all
+./scripts/linux_build_w2a.sh --stepbp-train
 ```
 
 | Slice | Status |
 |---|:---:|
 | Linux x86_64 CMake → `libwelvet_rocm.so` | ✅ |
 | HIP device / buffer / smoke saxpy | ✅ |
-| Leaf FormatNone forward ×22 + seqmix (`go_v_rocm`) | ✅ signed **0.27** |
-| Dense…KMeans (+Stack) NormalBP | ✅ signed **0.27** |
-| Parallel NormalBP (Mode 1 → **0.51**) | ⬜ |
-| StepBP … StepTweenSplitSparse (cuda 0.79 ladder) | ⬜ |
+| Leaf FormatNone forward ×22 + seqmix (`go_v_rocm`) | ✅ |
+| NormalBP Mode 1 (23 families leaf+vol) | ✅ signed **0.51** |
+| StepBP Line + Dense MeshBP | ✅ signed **0.52** |
+| Tween … StepTweenSplitSparse (cuda 0.79 ladder) | ⬜ |
 | CamSync / Freeze/Shadow / model | ⬜ |
 
 Climb the checklist toward **cuda 0.79**. Determinism testing is done in sibling

@@ -50,6 +50,9 @@ usage: $0 [flags]
   --metacognition-train Metacognition NormalBP leaf + volume
   --gdn-train         GDN NormalBP leaf + volume (f32)
   --kmeans-train      KMeans NormalBP leaf + volume
+  --parallel-train    Parallel + ParallelPoly + NormalBPEdges
+  --normalbp-all      Full TestGoVRocmNormalBP aggregator
+  --stepbp-train      StepBP Line STB1 + Dense MeshBP MBP1 (+ ModeMeshBP vols)
   --help
 EOF
 }
@@ -60,7 +63,7 @@ if [[ $# -gt 0 ]]; then
     --help|-h) usage; exit 0 ;;
     --smoke) MODE=smoke; shift ;;
     --gaps) MODE=gaps; shift ;;
-    --dense-fwd|--rmsnorm-fwd|--layernorm-fwd|--softmax-fwd|--swiglu-fwd|--embedding-fwd|--mha-fwd|--cnn-fwd|--convt-fwd|--rnn-fwd|--lstm-fwd|--sequential-fwd|--residual-fwd|--mamba-fwd|--metacognition-fwd|--gdn-fwd|--kmeans-fwd|--parallel-fwd|--seqmix-fwd|--leaf-fwd-all|--dense-train|--rmsnorm-train|--layernorm-train|--softmax-train|--swiglu-train|--embedding-train|--mha-train|--cnn-train|--convt-train|--rnn-train|--lstm-train|--sequential-train|--residual-train|--stack-train|--mamba-train|--metacognition-train|--gdn-train|--kmeans-train)
+    --dense-fwd|--rmsnorm-fwd|--layernorm-fwd|--softmax-fwd|--swiglu-fwd|--embedding-fwd|--mha-fwd|--cnn-fwd|--convt-fwd|--rnn-fwd|--lstm-fwd|--sequential-fwd|--residual-fwd|--mamba-fwd|--metacognition-fwd|--gdn-fwd|--kmeans-fwd|--parallel-fwd|--seqmix-fwd|--leaf-fwd-all|--dense-train|--rmsnorm-train|--layernorm-train|--softmax-train|--swiglu-train|--embedding-train|--mha-train|--cnn-train|--convt-train|--rnn-train|--lstm-train|--sequential-train|--residual-train|--stack-train|--mamba-train|--metacognition-train|--gdn-train|--kmeans-train|--parallel-train|--normalbp-all|--stepbp-train)
       MODE="${1#--}"; shift ;;
     *)
       echo "unknown flag '$1'" >&2
@@ -154,6 +157,9 @@ case "$MODE" in
   metacognition-train) run_go_test '^TestGoVRocmMetacognitionTrain$' ;;
   gdn-train) run_go_test '^TestGoVRocmGDNTrain$' ;;
   kmeans-train) run_go_test '^TestGoVRocmKMeansTrain$' ;;
+  parallel-train) run_go_test '^TestGoVRocm(ParallelTrain|ParallelPolyTrain|NormalBPEdges)$' ;;
+  normalbp-all) run_go_test '^TestGoVRocmNormalBP$' ;;
+  stepbp-train) run_go_test '^TestGoVRocmStepBPTrain$' ;;
   *)
     echo "unhandled mode: $MODE" >&2
     exit 2
