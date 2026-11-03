@@ -26,8 +26,8 @@ welvet::rocm::DeviceInfo info_from(int index) {
     return i;
   }
   i.name = prop.name;
-  i.gcn_arch_major = prop.major;
-  i.gcn_arch_minor = prop.minor;
+  i.compute_major = prop.major;
+  i.compute_minor = prop.minor;
   i.total_global_mem = prop.totalGlobalMem;
   i.multi_processor_count = prop.multiProcessorCount;
   return i;
@@ -45,7 +45,7 @@ Status init_default_device() {
   auto st = hip_status(hipGetDeviceCount(&count), "hipGetDeviceCount");
   if (!st) return st;
   if (count <= 0) {
-    return Status::Err(StatusCode::Unsupported, "no HIP/ROCm device available");
+    return Status::Err(StatusCode::Unsupported, "no ROCm device available");
   }
 
   st = hip_status(hipSetDevice(0), "hipSetDevice");
@@ -54,8 +54,8 @@ Status init_default_device() {
   g_device = 0;
   auto info = info_from(0);
   std::ostringstream os;
-  os << "rocm:" << info.name << ":idx=" << info.index << ":gcn=" << info.gcn_arch_major << "."
-     << info.gcn_arch_minor << ":mem=" << info.total_global_mem;
+  os << "rocm:" << info.name << ":idx=" << info.index << ":gcn=" << info.compute_major << "."
+     << info.compute_minor << ":mem=" << info.total_global_mem;
   g_identity = os.str();
   return Status::Ok();
 }

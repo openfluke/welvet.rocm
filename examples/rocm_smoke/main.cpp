@@ -20,9 +20,9 @@ int main() {
 
   std::cout << "devices:\n";
   for (const auto& d : welvet::rocm::list_devices()) {
-    std::cout << "  [" << d.index << "] " << d.name << " gcn=" << d.gcn_arch_major << "."
-              << d.gcn_arch_minor << " mem=" << d.total_global_mem
-              << " cus=" << d.multi_processor_count << "\n";
+    std::cout << "  [" << d.index << "] " << d.name << " sm=" << d.compute_major << "."
+              << d.compute_minor << " mem=" << d.total_global_mem
+              << " sms=" << d.multi_processor_count << "\n";
   }
 
   constexpr std::size_t n = 4;

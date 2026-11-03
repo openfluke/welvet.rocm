@@ -10,7 +10,7 @@
 ./build/example_rocm_smoke
 ./build/welvet_dense_fwd --gaps
 ./scripts/linux_build_w2a.sh --smoke
-# as suites land (mirror welvet.cuda → 0.79):
+# as suites land (mirror welvet.rocm → 0.79):
 # ./scripts/linux_build_w2a.sh --leaf-fwd-all
 # ./scripts/linux_build_w2a.sh --normalbp-all
 # ./scripts/linux_build_w2a.sh --training-all

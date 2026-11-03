@@ -7,36 +7,35 @@ Execution is **ROCm compute + resident device buffers**. Host orchestration is C
 
 | | |
 |--|--|
-| **Version** | **`0.00`** (M0 scaffold) |
-| **Engine board** | **0 / 100** (same 10 categories as Go Welvet) |
+| **Version** | **`0.00`** (leaf FormatNone engine + `go_v_rocm` landed; unsigned until ROCm GPU evidence) |
+| **Engine board** | **0 / 100** — target **0.27** after `--leaf-fwd-all` PASS |
 | **Compute** | AMD GPU (ROCm / HIP) — primary · CUDA / Metal / CPU siblings remain separate repos |
 | **Parity reference** | [welvet](https://github.com/openfluke/welvet) Go |
 | **CUDA sibling (target ladder)** | [welvet.cuda](https://github.com/openfluke/welvet.cuda) **0.79** — **score not inherited** |
-| **Validation** | [w2a](https://github.com/openfluke/w2a) `Go_v_Rocm` (determinism as gates land) |
+| **Validation** | [w2a](https://github.com/openfluke/w2a) `Go_v_Rocm` leaf FormatNone×34 |
 
 **This README is the runway.** Tick ⬜ → 🚧 → ✅ as gates land.
 **Training port detail** lives in [docs/TRAINING_CHECKLIST.md](docs/TRAINING_CHECKLIST.md)
-(exact case/wire mirror of cuda — all unsigned at M0). Pure-ROCm contract:
-[docs/ROCM_ONLY.md](docs/ROCM_ONLY.md). Gap census: [GAPS.md](GAPS.md).
-Version formula: [VERSIONING.md](VERSIONING.md).
+(exact case/wire mirror of cuda). Pure-ROCm contract: [docs/ROCM_ONLY.md](docs/ROCM_ONLY.md).
+Gap census: [GAPS.md](GAPS.md). Version formula: [VERSIONING.md](VERSIONING.md).
 
-### What exists today (M0)
+### What exists today
 
 ```bash
 ./scripts/build_linux.sh
 ./build/example_rocm_smoke
 ./build/welvet_dense_fwd --version   # 0.00
-./build/welvet_dense_fwd --identity
 ./build/welvet_dense_fwd --gaps
-./scripts/linux_build_w2a.sh --smoke
+./scripts/linux_build_w2a.sh --leaf-fwd-all   # needs ROCm-capable GPU to PASS / sign
 ```
 
 | Slice | Status |
 |---|:---:|
 | Linux x86_64 CMake → `libwelvet_rocm.so` | ✅ |
 | HIP device / buffer / smoke saxpy | ✅ |
-| C ABI version / init / available / gaps | ✅ |
-| Leaf FormatNone forward ×23 + seqmix | ⬜ |
+| C ABI + leaf FormatNone engine (Dense…Parallel + seqmix) | ✅ code |
+| w2a `go_v_rocm` leaf suites | ✅ wired |
+| Leaf FormatNone forward **signed** (`--leaf-fwd-all` PASS) | ⬜ needs ROCm GPU |
 | NormalBP … StepTweenSplitSparse (cuda 0.79 ladder) | ⬜ |
 | CamSync / Freeze/Shadow / model | ⬜ |
 

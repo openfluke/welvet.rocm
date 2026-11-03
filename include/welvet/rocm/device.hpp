@@ -11,8 +11,8 @@ namespace welvet::rocm {
 struct DeviceInfo {
   int index = -1;
   std::string name;
-  int gcn_arch_major = 0; // HIP: hipDeviceProp_t::major
-  int gcn_arch_minor = 0;
+  int compute_major = 0;
+  int compute_minor = 0;
   std::size_t total_global_mem = 0;
   int multi_processor_count = 0;
 };
@@ -23,7 +23,7 @@ bool available();
 Status default_device_info(DeviceInfo* out);
 std::vector<DeviceInfo> list_devices();
 
-// Device + runtime identity for provenance in w2a logs.
+// Device + driver/runtime identity for provenance in w2a logs.
 std::string runtime_identity();
 
 } // namespace welvet::rocm

@@ -41,6 +41,11 @@ Validation lives in sibling **w2a** (`go_v_rocm`), not in this tree — same pat
 Run: `./scripts/linux_build_w2a.sh --leaf-fwd-all` (or per-layer `--*-fwd`).  
 Exact tensor bits vs Go (+ cpp speed column when present). Stack has no leaf forward magic.
 
+**Engine + w2a suites landed (HIP port of cuda leaf path, `go_v_rocm`).**  
+Sign-off requires a **ROCm-capable AMD GPU** — this host’s Polaris/Picasso cards are not
+HSA compute targets (`hipGetDeviceCount: no ROCm-capable device`). Re-run `--leaf-fwd-all`
+on supported hardware, then tick `[x]` and bump to **0.27**.
+
 | Layer | Test | Wire | Status |
 |---|---|---|:---:|
 | Dense | `TestGoVRocmDenseForward` | `WVD3`→`WVO1` | [ ] |

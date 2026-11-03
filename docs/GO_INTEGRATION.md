@@ -13,6 +13,6 @@ Leaf FormatNone forwards, NormalBP, TrainModes and model sessions land as
 [TRAINING_CHECKLIST.md](TRAINING_CHECKLIST.md) rows are signed via
 `w2a` `go_v_rocm` (determinism spectrum: `industry` → `exact_bit`).
 
-Wire names and descriptor layouts mirror `welvet.cuda`
-([GO_INTEGRATION.md](../../welvet.cuda/docs/GO_INTEGRATION.md)) with
-`welvet_rocm_*` / `libwelvet_rocm.so` substituted for the CUDA names.
+Wire names and descriptor layouts mirror `welvet.rocm`
+([GO_INTEGRATION.md](../../welvet.rocm/docs/GO_INTEGRATION.md)) with
+`welvet_rocm_*` / `libwelvet_rocm.so` substituted for the ROCm names.

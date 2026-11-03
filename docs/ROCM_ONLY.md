@@ -1,7 +1,7 @@
 # ROCm execution contract
 
 `welvet.rocm` is a standalone native AMD GPU backend (HIP / ROCm). `welvet.cpp`
-is the separate CPU backend; `welvet.cuda` is the NVIDIA GPU sibling;
+is the separate CPU backend; `welvet.rocm` is the AMD GPU sibling;
 `welvet.metal` is the Apple GPU sibling. Each ships through its own native
 artifact and C ABI. There is no dependency from one backend to the other, and
 **no host numerical fallback** labeled as ROCm.
@@ -23,7 +23,7 @@ artifact and C ABI. There is no dependency from one backend to the other, and
 
 Everything else (NormalBP, volume, train modes, …) is gap until ticked in
 [TRAINING_CHECKLIST.md](TRAINING_CHECKLIST.md) and the [README runway](../README.md).
-Climb the **same mode ladder** as `welvet.cuda` (currently **0.79**).
+Climb the **same mode ladder** as `welvet.rocm` (currently **0.79**).
 
 ## Non-negotiable
 
@@ -51,4 +51,4 @@ Shared artifact: `libwelvet_rocm.so`. Requires CMake + AMD ROCm (`hipcc` / HIP r
 and a supported GCN/RDNA target (see AMD ROCm GPU support matrix).
 
 Determinism evidence is collected in sibling **w2a** (`go_v_rocm`) as each
-engine gate lands — same pattern as `go_v_cuda` / `go_v_metal` / `go_v_cpp`.
+engine gate lands — same pattern as `go_v_rocm` / `go_v_metal` / `go_v_cpp`.

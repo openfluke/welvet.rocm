@@ -1,6 +1,8 @@
 // Welvet ROCm kernels — M0 scaffold reference copy.
-// The build compiles src/rocm/kernels.hip into the library.
+// The build compiles src/rocm/kernels.cu into the library.
 // Dense MatVec / activations / backward kernels land as gates flip in GAPS.md.
-//
+
 // Identity saxpy-style smoke kernel: y[i] = a * x[i] + b
-// See src/rocm/kernels.hip for the compiled definitions.
+// Placeholder Dense GEMV (row-major W[out][in]): not wired from host Dense yet.
+//
+// See src/rocm/kernels.cu for the compiled definitions.
