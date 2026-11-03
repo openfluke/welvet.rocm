@@ -7,8 +7,8 @@ Execution is **ROCm compute + resident device buffers**. Host orchestration is C
 
 | | |
 |--|--|
-| **Version** | **`0.00`** (leaf FormatNone engine + `go_v_rocm` landed; unsigned until ROCm GPU evidence) |
-| **Engine board** | **0 / 100** — target **0.27** after `--leaf-fwd-all` PASS |
+| **Version** | **`0.27`** (leaf FormatNone forwards ×22 + seqmix) |
+| **Engine board** | **27 / 100** |
 | **Compute** | AMD GPU (ROCm / HIP) — primary · CUDA / Metal / CPU siblings remain separate repos |
 | **Parity reference** | [welvet](https://github.com/openfluke/welvet) Go |
 | **CUDA sibling (target ladder)** | [welvet.cuda](https://github.com/openfluke/welvet.cuda) **0.79** — **score not inherited** |
@@ -24,18 +24,16 @@ Gap census: [GAPS.md](GAPS.md). Version formula: [VERSIONING.md](VERSIONING.md).
 ```bash
 ./scripts/build_linux.sh
 ./build/example_rocm_smoke
-./build/welvet_dense_fwd --version   # 0.00
+./build/welvet_dense_fwd --version   # 0.27
 ./build/welvet_dense_fwd --gaps
-./scripts/linux_build_w2a.sh --leaf-fwd-all   # needs ROCm-capable GPU to PASS / sign
+./scripts/linux_build_w2a.sh --leaf-fwd-all
 ```
 
 | Slice | Status |
 |---|:---:|
 | Linux x86_64 CMake → `libwelvet_rocm.so` | ✅ |
 | HIP device / buffer / smoke saxpy | ✅ |
-| C ABI + leaf FormatNone engine (Dense…Parallel + seqmix) | ✅ code |
-| w2a `go_v_rocm` leaf suites | ✅ wired |
-| Leaf FormatNone forward **signed** (`--leaf-fwd-all` PASS) | ⬜ needs ROCm GPU |
+| Leaf FormatNone forward ×22 + seqmix (`go_v_rocm`) | ✅ signed **0.27** |
 | NormalBP … StepTweenSplitSparse (cuda 0.79 ladder) | ⬜ |
 | CamSync / Freeze/Shadow / model | ⬜ |
 

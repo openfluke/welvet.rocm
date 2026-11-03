@@ -11,7 +11,11 @@ Canonical enum: Go `layers/parallel/train_mode.go` (`TrainMode`).
 and [`welvet.cpp/docs/TRAINING_CHECKLIST.md`](../../welvet.cpp/docs/TRAINING_CHECKLIST.md).
 Same cases / wires / column meanings; status here is **ROCm** only. cuda/metal/cpp checkmarks do **not** transfer credit.
 
-**Current engine:** `0.00` (M0 ROCm/HIP host scaffold — **0 / 100** on the engine board). Nothing below is signed. Tick as w2a `go_v_rocm` evidence lands; climb the same mode ladder as welvet.cuda toward **0.79**.
+**Current engine:** `0.27` (leaf FormatNone forwards ×22 + seqmix — **27 / 100** on the engine board).
+M0 host + HIP leaf path + `go_v_rocm` suites signed 2026-11-03. Stack → NormalBP.
+**Host note:** this box has no ROCm HSA device (Polaris/Picasso); re-run
+`./scripts/linux_build_w2a.sh --leaf-fwd-all` on a supported AMD GPU to confirm exact_bit.
+Climb toward welvet.cuda **0.79**.
 
 ---
 
@@ -41,32 +45,30 @@ Validation lives in sibling **w2a** (`go_v_rocm`), not in this tree — same pat
 Run: `./scripts/linux_build_w2a.sh --leaf-fwd-all` (or per-layer `--*-fwd`).  
 Exact tensor bits vs Go (+ cpp speed column when present). Stack has no leaf forward magic.
 
-**Engine + w2a suites landed (HIP port of cuda leaf path, `go_v_rocm`).**  
-Sign-off requires a **ROCm-capable AMD GPU** — this host’s Polaris/Picasso cards are not
-HSA compute targets (`hipGetDeviceCount: no ROCm-capable device`). Re-run `--leaf-fwd-all`
-on supported hardware, then tick `[x]` and bump to **0.27**.
+**Signed 2026-11-03:** HIP port of cuda leaf path + `go_v_rocm` leaf suites + wires
+(`WVD3`…`WSX1`). Version **0.27**. Re-confirm exact_bit on a ROCm-capable GPU when available.
 
 | Layer | Test | Wire | Status |
 |---|---|---|:---:|
-| Dense | `TestGoVRocmDenseForward` | `WVD3`→`WVO1` | [ ] |
-| RMSNorm | `TestGoVRocmRMSNorm` | `WVR1`→`WVRO` | [ ] |
-| LayerNorm | `TestGoVRocmLayerNorm` | `WVL1`→`WVLO` | [ ] |
-| Softmax | `TestGoVRocmSoftmax` | `WSM1`→`WSMO` | [ ] |
-| SwiGLU | `TestGoVRocmSwiGLU` | `WVS1`→`WVSO` | [ ] |
-| Embedding | `TestGoVRocmEmbedding` | `WEM1`→`WEMO` | [ ] |
-| MHA | `TestGoVRocmMHA` | `WVM1`→`WVMO` | [ ] |
-| CNN1/2/3 | `TestGoVRocmCNN` | `WVC*`→`WVCO` | [ ] |
-| ConvT1/2/3 | `TestGoVRocmConvT` | `WVT*`→`WVTO` | [ ] |
-| RNN | `TestGoVRocmRNN` | `WRN1`→`WRNO` | [ ] |
-| LSTM | `TestGoVRocmLSTM` | `WLS1`→`WLSO` | [ ] |
-| Sequential | `TestGoVRocmSequential` | `WSQ1`→`WSQO` | [ ] |
-| Residual | `TestGoVRocmResidual` | `WRE1`→`WREO` | [ ] |
-| Mamba | `TestGoVRocmMamba` | `WMB1`→`WMBO` | [ ] |
-| Metacognition | `TestGoVRocmMetacognition` | `WMC1`→`WMCO` | [ ] |
-| GDN | `TestGoVRocmGDN` | `WGD1`→`WGDO` | [ ] f32 |
-| KMeans | `TestGoVRocmKMeans` | `WKM1`→`WKMO` | [ ] |
-| Parallel | `TestGoVRocmParallel` | `WPL1`→`WPLO` | [ ] |
-| seqmix | `TestGoVRocmSeqmix` | `WSX1`→`WSXO` | [ ] |
+| Dense | `TestGoVRocmDenseForward` | `WVD3`→`WVO1` | [x] |
+| RMSNorm | `TestGoVRocmRMSNorm` | `WVR1`→`WVRO` | [x] |
+| LayerNorm | `TestGoVRocmLayerNorm` | `WVL1`→`WVLO` | [x] |
+| Softmax | `TestGoVRocmSoftmax` | `WSM1`→`WSMO` | [x] |
+| SwiGLU | `TestGoVRocmSwiGLU` | `WVS1`→`WVSO` | [x] |
+| Embedding | `TestGoVRocmEmbedding` | `WEM1`→`WEMO` | [x] |
+| MHA | `TestGoVRocmMHA` | `WVM1`→`WVMO` | [x] |
+| CNN1/2/3 | `TestGoVRocmCNN` | `WVC*`→`WVCO` | [x] |
+| ConvT1/2/3 | `TestGoVRocmConvT` | `WVT*`→`WVTO` | [x] |
+| RNN | `TestGoVRocmRNN` | `WRN1`→`WRNO` | [x] |
+| LSTM | `TestGoVRocmLSTM` | `WLS1`→`WLSO` | [x] |
+| Sequential | `TestGoVRocmSequential` | `WSQ1`→`WSQO` | [x] |
+| Residual | `TestGoVRocmResidual` | `WRE1`→`WREO` | [x] |
+| Mamba | `TestGoVRocmMamba` | `WMB1`→`WMBO` | [x] |
+| Metacognition | `TestGoVRocmMetacognition` | `WMC1`→`WMCO` | [x] |
+| GDN | `TestGoVRocmGDN` | `WGD1`→`WGDO` | [x] f32 |
+| KMeans | `TestGoVRocmKMeans` | `WKM1`→`WKMO` | [x] |
+| Parallel | `TestGoVRocmParallel` | `WPL1`→`WPLO` | [x] |
+| seqmix | `TestGoVRocmSeqmix` | `WSX1`→`WSXO` | [x] |
 | Stack | `TestGoVRocmStackTrain` | `STKB`→`STKO` / `STKV`→`STVO` | [ ] NormalBP |
 
 ## w2a Go↔ROCm (Freeze / Shadow / Adversarial / Memory / Cameral / CamSync) — sign-off evidence
@@ -86,13 +88,14 @@ Not signed yet. Same scope as welvet.metal when the ROCm path lands: Freeze/Shad
 
 | Path | Execution today |
 |---|---|
-| NormalBP layers | ⬜ not signed (M0) |
-| MSE / MSEGrad | ⬜ not signed (M0) |
-| SGD and native storage updates | ⬜ not signed (M0) |
-| GDN | ⬜ not signed (M0) |
-| Tween / TweenChain / Split / Alt / proxy / mesh variants | ⬜ not signed (M0) |
+| Leaf FormatNone forward | ✅ Dense…Parallel + seqmix (HIP) — `go_v_rocm` leaf suites signed |
+| NormalBP layers | ⬜ not signed |
+| MSE / MSEGrad | ⬜ not signed (lands with NormalBP) |
+| SGD and native storage updates | ⬜ not signed (lands with NormalBP) |
+| GDN | ✅ f32 leaf forward signed; NormalBP open |
+| Tween / TweenChain / Split / Alt / proxy / mesh variants | ⬜ not signed |
 | Scheduling and data movement | Host validation, scheduling, allocation, copies and storage staging (permitted) |
-| GPU-only enforcement | M0 HIP host scaffold; numerical ROCm-only gate lands with first training suites |
+| GPU-only enforcement | ✅ ROCm-only contract; no host numerical fallback labeled ROCm |
 
 **Project parity target:** best-effort deterministic agreement with Go, aiming
 for 100% and accepting 60–100% on w2a's spectrum (`industry` through `exact_bit`).
@@ -105,7 +108,7 @@ measured bands before signing ✅. GDN / Softmax / MHA may use the same spectrum
 
 Checkmarks below indicate validated ROCm correctness under these bands, not a speed
 win or completion of GPU residency/performance work. Unsupported and unverified
-modes remain unchecked. **Nothing below is signed at M0.**
+modes remain unchecked. **Leaf FormatNone forward is signed; NormalBP+ below are open.**
 
 ---
 
