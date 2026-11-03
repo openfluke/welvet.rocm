@@ -34,6 +34,22 @@ usage: $0 [flags]
   --leaf-fwd-all      all leaf FormatNone forward suites
   --dense-train       Dense NormalBP leaf + volume (7 cases)
   --rmsnorm-train     RMSNorm NormalBP leaf + volume (7 cases)
+  --layernorm-train   LayerNorm NormalBP leaf + volume (7 cases)
+  --softmax-train     Softmax NormalBP leaf + volume (9 cases)
+  --swiglu-train      SwiGLU NormalBP leaf + volume (7 cases)
+  --embedding-train   Embedding NormalBP leaf + volume (7 cases)
+  --mha-train         MHA NormalBP leaf + volume (8 cases)
+  --cnn-train         CNN1/2/3 NormalBP leaf + volume
+  --convt-train       ConvT1/2/3 NormalBP leaf + volume
+  --rnn-train         RNN NormalBP leaf + volume
+  --lstm-train        LSTM NormalBP leaf + volume
+  --sequential-train  Sequential NormalBP leaf + volume
+  --residual-train    Residual NormalBP leaf + volume
+  --stack-train       Stack NestedStack-of-Dense NormalBP leaf + volume
+  --mamba-train       Mamba NormalBP leaf + volume
+  --metacognition-train Metacognition NormalBP leaf + volume
+  --gdn-train         GDN NormalBP leaf + volume (f32)
+  --kmeans-train      KMeans NormalBP leaf + volume
   --help
 EOF
 }
@@ -44,7 +60,7 @@ if [[ $# -gt 0 ]]; then
     --help|-h) usage; exit 0 ;;
     --smoke) MODE=smoke; shift ;;
     --gaps) MODE=gaps; shift ;;
-    --dense-fwd|--rmsnorm-fwd|--layernorm-fwd|--softmax-fwd|--swiglu-fwd|--embedding-fwd|--mha-fwd|--cnn-fwd|--convt-fwd|--rnn-fwd|--lstm-fwd|--sequential-fwd|--residual-fwd|--mamba-fwd|--metacognition-fwd|--gdn-fwd|--kmeans-fwd|--parallel-fwd|--seqmix-fwd|--leaf-fwd-all|--dense-train|--rmsnorm-train)
+    --dense-fwd|--rmsnorm-fwd|--layernorm-fwd|--softmax-fwd|--swiglu-fwd|--embedding-fwd|--mha-fwd|--cnn-fwd|--convt-fwd|--rnn-fwd|--lstm-fwd|--sequential-fwd|--residual-fwd|--mamba-fwd|--metacognition-fwd|--gdn-fwd|--kmeans-fwd|--parallel-fwd|--seqmix-fwd|--leaf-fwd-all|--dense-train|--rmsnorm-train|--layernorm-train|--softmax-train|--swiglu-train|--embedding-train|--mha-train|--cnn-train|--convt-train|--rnn-train|--lstm-train|--sequential-train|--residual-train|--stack-train|--mamba-train|--metacognition-train|--gdn-train|--kmeans-train)
       MODE="${1#--}"; shift ;;
     *)
       echo "unknown flag '$1'" >&2
@@ -122,6 +138,22 @@ case "$MODE" in
   leaf-fwd-all) run_go_test '^TestGoVRocm(DenseForward|RMSNorm|LayerNorm|Softmax|SwiGLU|Embedding|MHA|CNN|ConvT|RNN|LSTM|Sequential|Residual|Mamba|Metacognition|GDN|KMeans|Parallel|Seqmix)$' ;;
   dense-train) run_go_test '^TestGoVRocmDenseTrain$' ;;
   rmsnorm-train) run_go_test '^TestGoVRocmRMSNormTrain$' ;;
+  layernorm-train) run_go_test '^TestGoVRocmLayerNormTrain$' ;;
+  softmax-train) run_go_test '^TestGoVRocmSoftmaxTrain$' ;;
+  swiglu-train) run_go_test '^TestGoVRocmSwiGLUTrain$' ;;
+  embedding-train) run_go_test '^TestGoVRocmEmbeddingTrain$' ;;
+  mha-train) run_go_test '^TestGoVRocmMHATrain$' ;;
+  cnn-train) run_go_test '^TestGoVRocmCNNTrain$' ;;
+  convt-train) run_go_test '^TestGoVRocmConvTTrain$' ;;
+  rnn-train) run_go_test '^TestGoVRocmRNNTrain$' ;;
+  lstm-train) run_go_test '^TestGoVRocmLSTMTrain$' ;;
+  sequential-train) run_go_test '^TestGoVRocmSequentialTrain$' ;;
+  residual-train) run_go_test '^TestGoVRocmResidualTrain$' ;;
+  stack-train) run_go_test '^TestGoVRocmStackTrain$' ;;
+  mamba-train) run_go_test '^TestGoVRocmMambaTrain$' ;;
+  metacognition-train) run_go_test '^TestGoVRocmMetacognitionTrain$' ;;
+  gdn-train) run_go_test '^TestGoVRocmGDNTrain$' ;;
+  kmeans-train) run_go_test '^TestGoVRocmKMeansTrain$' ;;
   *)
     echo "unhandled mode: $MODE" >&2
     exit 2

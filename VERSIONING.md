@@ -7,7 +7,7 @@
 |-----|---------|
 | **0.00** | Bedrock — ROCm/HIP host scaffold; **0 / 100** on the engine board |
 | **0.13** | M1 Dense FormatNone×34 forward signed (Foundation 9 + Dense fwd 4) |
-| **0.27** | Leaf FormatNone forwards ×22 layers + seqmix (Stack→NormalBP) — **current** |
+| **0.27** | Leaf FormatNone ×22 + seqmix; Dense…KMeans (+Stack) NormalBP signed (Parallel open → 0.51) — **current** |
 | **0.51** | NormalBP Mode 1 signed for all 23 layers (`TestGoVRocmNormalBP`) |
 | **0.52…0.79** | Same train-mode ladder as [welvet.cuda/VERSIONING.md](../welvet.cuda/VERSIONING.md) (`TestGoVRocm*` evidence) |
 | **0.x** | `round(earned)` from the engine table in [README.md](README.md) |

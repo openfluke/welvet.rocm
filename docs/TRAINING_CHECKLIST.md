@@ -11,11 +11,11 @@ Canonical enum: Go `layers/parallel/train_mode.go` (`TrainMode`).
 and [`welvet.cpp/docs/TRAINING_CHECKLIST.md`](../../welvet.cpp/docs/TRAINING_CHECKLIST.md).
 Same cases / wires / column meanings; status here is **ROCm** only. cuda/metal/cpp checkmarks do **not** transfer credit.
 
-**Current engine:** `0.27` (leaf FormatNone ×22 + seqmix; **Dense + RMSNorm NormalBP** signed — **27 / 100** on the engine board).
-M0 host + HIP leaf + Dense/RMSNorm NormalBP (`WDB1`/`WVN1`, `WRB1`/`WRV1`) + `go_v_rocm` suites signed 2026-11-03.
-Next: LayerNorm…Stack NormalBP → **0.51**.
+**Current engine:** `0.27` (leaf FormatNone ×22 + seqmix; **Dense…KMeans NormalBP** signed, Parallel open — **27 / 100** on the engine board).
+M0 host + HIP leaf + NormalBP through KMeans (+ Stack) + `go_v_rocm` suites signed 2026-11-03.
+Next: Parallel NormalBP → full Mode 1 **0.51**.
 **Host note:** this box has no ROCm HSA device (Polaris/Picasso); re-run
-`./scripts/linux_build_w2a.sh --leaf-fwd-all`, `--dense-train`, and `--rmsnorm-train` on a supported AMD GPU to confirm exact_bit.
+`./scripts/linux_build_w2a.sh --leaf-fwd-all` and `--*-train` on a supported AMD GPU to confirm exact_bit.
 Climb toward welvet.cuda **0.79**.
 
 ---
@@ -35,11 +35,27 @@ Validation lives in sibling **w2a** (`go_v_rocm`), not in this tree — same pat
 ./scripts/build_linux.sh
 ./scripts/linux_build_w2a.sh --smoke
 ./scripts/linux_build_w2a.sh --leaf-fwd-all   # all leaf FormatNone forwards (signed)
-./scripts/linux_build_w2a.sh --dense-train    # Dense NormalBP leaf+vol (signed)
-./scripts/linux_build_w2a.sh --rmsnorm-train  # RMSNorm NormalBP leaf+vol (signed)
-# as suites land:
+./scripts/linux_build_w2a.sh --dense-train    # Dense NormalBP (signed)
+./scripts/linux_build_w2a.sh --rmsnorm-train  # RMSNorm NormalBP (signed)
+./scripts/linux_build_w2a.sh --layernorm-train
+./scripts/linux_build_w2a.sh --swiglu-train
+./scripts/linux_build_w2a.sh --softmax-train
+./scripts/linux_build_w2a.sh --embedding-train
+./scripts/linux_build_w2a.sh --mha-train
+./scripts/linux_build_w2a.sh --cnn-train
+./scripts/linux_build_w2a.sh --convt-train
+./scripts/linux_build_w2a.sh --rnn-train
+./scripts/linux_build_w2a.sh --lstm-train
+./scripts/linux_build_w2a.sh --sequential-train
+./scripts/linux_build_w2a.sh --residual-train
+./scripts/linux_build_w2a.sh --mamba-train
+./scripts/linux_build_w2a.sh --metacognition-train
+./scripts/linux_build_w2a.sh --gdn-train
+./scripts/linux_build_w2a.sh --stack-train
+./scripts/linux_build_w2a.sh --kmeans-train
+# remaining for Mode 1:
+# ./scripts/linux_build_w2a.sh --parallel-train
 # ./scripts/linux_build_w2a.sh --normalbp-all
-# ./scripts/linux_build_w2a.sh --training-all
 ```
 
 ## w2a Go↔ROCm (leaf FormatNone forward) — signed
@@ -71,7 +87,7 @@ Exact tensor bits vs Go (+ cpp speed column when present). Stack has no leaf for
 | KMeans | `TestGoVRocmKMeans` | `WKM1`→`WKMO` | [x] |
 | Parallel | `TestGoVRocmParallel` | `WPL1`→`WPLO` | [x] |
 | seqmix | `TestGoVRocmSeqmix` | `WSX1`→`WSXO` | [x] |
-| Stack | `TestGoVRocmStackTrain` | `STKB`→`STKO` / `STKV`→`STVO` | [ ] NormalBP |
+| Stack | `TestGoVRocmStackTrain` | `STKB`→`STKO` / `STKV`→`STVO` | [x] NormalBP |
 
 ## w2a Go↔ROCm (Freeze / Shadow / Adversarial / Memory / Cameral / CamSync) — sign-off evidence
 
@@ -91,10 +107,10 @@ Not signed yet. Same scope as welvet.metal when the ROCm path lands: Freeze/Shad
 | Path | Execution today |
 |---|---|
 | Leaf FormatNone forward | ✅ Dense…Parallel + seqmix (HIP) — `go_v_rocm` leaf suites signed |
-| NormalBP layers | 🟡 Dense + RMSNorm signed; other families open → 0.51 |
+| NormalBP layers | 🟡 Dense…KMeans (+Stack) signed; Parallel open → 0.51 |
 | MSE / MSEGrad | ✅ with Dense NormalBP (finite loss band) |
 | SGD and native storage updates | ✅ FormatNone Dense SGD (leaf + volume) |
-| GDN | ✅ f32 leaf forward signed; NormalBP open |
+| GDN | ✅ f32 leaf forward + NormalBP signed (f32-only) |
 | Tween / TweenChain / Split / Alt / proxy / mesh variants | ⬜ not signed |
 | Scheduling and data movement | Host validation, scheduling, allocation, copies and storage staging (permitted) |
 | GPU-only enforcement | ✅ ROCm-only contract; no host numerical fallback labeled ROCm |
@@ -110,7 +126,7 @@ measured bands before signing ✅. GDN / Softmax / MHA may use the same spectrum
 
 Checkmarks below indicate validated ROCm correctness under these bands, not a speed
 win or completion of GPU residency/performance work. Unsupported and unverified
-modes remain unchecked. **Leaf FormatNone forward + Dense/RMSNorm NormalBP signed; other NormalBP+ below are open.**
+modes remain unchecked. **Leaf FormatNone + Dense…KMeans (+Stack) NormalBP signed; Parallel NormalBP open → 0.51.**
 
 ---
 
@@ -181,15 +197,17 @@ Run: `./scripts/linux_build_w2a.sh --layernorm-train`
 Wire: `WLB1`/`WLBO` (leaf), `WLV1`/`WLVO` (volume). Exact tensor bits vs Go, subject to the precision policy above.
 Timing: same `--bench=N` / spd%Δ convention (leaf mount-once + γ/β reset).
 
+**Signed 2026-11-03:** HIP port + `go_v_rocm` `TestGoVRocmLayerNormTrain`. Engine stays **0.27** until Parallel → Mode 1 **0.51**. Re-confirm exact_bit on ROCm GPU when available.
+
 | # | Case | Status | Notes |
 |---|---|:---:|---|
-| 1 | Leaf Float32 (dX/dγβ/γβ/loss) | [ ] | exact_bit + speed |
-| 2 | Leaf × all 34 dtypes | [ ] | exact_bit + speed table |
-| 3 | Volume 1×1×1×1 Float32 | [ ] | inside-node + speed |
-| 4 | Volume 1×1×1×2 chain Float32 | [ ] | multi-layer cell + speed |
-| 5 | Volume 1×1×1×1 × all 34 dtypes | [ ] | + speed table |
-| 6 | Volume 2×2×2×1 Float32 | [ ] | 3D volumetric + speed |
-| 7 | Volume 2×1×1×1 × all 34 dtypes | [ ] | multi-cell ×34 + speed table |
+| 1 | Leaf Float32 (dX/dγβ/γβ/loss) | [x] | exact_bit + speed |
+| 2 | Leaf × all 34 dtypes | [x] | exact_bit + speed table |
+| 3 | Volume 1×1×1×1 Float32 | [x] | inside-node + speed |
+| 4 | Volume 1×1×1×2 chain Float32 | [x] | multi-layer cell + speed |
+| 5 | Volume 1×1×1×1 × all 34 dtypes | [x] | + speed table |
+| 6 | Volume 2×2×2×1 Float32 | [x] | 3D volumetric + speed |
+| 7 | Volume 2×1×1×1 × all 34 dtypes | [x] | multi-cell ×34 + speed table |
 
 ## w2a Go↔ROCm (SwiGLU NormalBP) — sign-off evidence
 
@@ -197,15 +215,17 @@ Run: `./scripts/linux_build_w2a.sh --swiglu-train`
 Wire: `WSB1`/`WSBO` (leaf), `WSV1`/`WSVO` (volume). Exact tensor bits vs Go, subject to the precision policy above.
 Timing: same `--bench=N` / spd%Δ convention.
 
+**Signed 2026-11-03:** HIP port + `go_v_rocm` `TestGoVRocmSwiGLUTrain`. Engine stays **0.27** until Parallel → Mode 1 **0.51**. Re-confirm exact_bit on ROCm GPU when available.
+
 | # | Case | Status | Notes |
 |---|---|:---:|---|
-| 1 | Leaf Float32 (dX/dW/W/loss) | [ ] | exact_bit + speed |
-| 2 | Leaf × all 34 dtypes | [ ] | exact_bit + speed table |
-| 3 | Volume 1×1×1×1 Float32 | [ ] | inside-node + speed |
-| 4 | Volume 1×1×1×2 chain Float32 | [ ] | multi-layer cell + speed |
-| 5 | Volume 1×1×1×1 × all 34 dtypes | [ ] | + speed table |
-| 6 | Volume 2×2×2×1 Float32 | [ ] | 3D volumetric + speed |
-| 7 | Volume 2×1×1×1 × all 34 dtypes | [ ] | multi-cell ×34 + speed table |
+| 1 | Leaf Float32 (dX/dW/W/loss) | [x] | exact_bit + speed |
+| 2 | Leaf × all 34 dtypes | [x] | exact_bit + speed table |
+| 3 | Volume 1×1×1×1 Float32 | [x] | inside-node + speed |
+| 4 | Volume 1×1×1×2 chain Float32 | [x] | multi-layer cell + speed |
+| 5 | Volume 1×1×1×1 × all 34 dtypes | [x] | + speed table |
+| 6 | Volume 2×2×2×1 Float32 | [x] | 3D volumetric + speed |
+| 7 | Volume 2×1×1×1 × all 34 dtypes | [x] | multi-cell ×34 + speed table |
 
 ## w2a Go↔ROCm (Softmax NormalBP) — sign-off evidence
 
@@ -213,17 +233,19 @@ Run: `./scripts/linux_build_w2a.sh --softmax-train`
 Wire: `WXB1`/`WXBO` (leaf), `WXV1`/`WXVO` (volume). Softmax = dX only (weightless).  
 Timing: leaf mount-once (reuse layer; no W). Band: **≥loose** floor (Softmax hard to bit-match); leaf×34 / volume hit **strict (~80%)**; Kind×34 worst **loose**; Gumbel = smoke.
 
+**Signed 2026-11-03:** HIP port + `go_v_rocm` `TestGoVRocmSoftmaxTrain`. Engine stays **0.27** until Parallel → Mode 1 **0.51**. Re-confirm exact_bit on ROCm GPU when available.
+
 | # | Case | Status | Notes |
 |---|---|:---:|---|
-| 1 | Leaf Standard Float32 (dX/loss) | [ ] | strict + speed |
-| 2 | Leaf all Kind Float32 (+ gumbel smoke) | [ ] | ≥loose; gumbel non-det |
-| 3 | Leaf Standard × all 34 dtypes | [ ] | strict ×34 + speed |
-| 4 | Leaf all Kind × all 34 dtypes | [ ] | ≥loose (worst=loose) |
-| 5 | Volume 1×1×1×1 Float32 | [ ] | inside-node strict |
-| 6 | Volume 1×1×1×2 chain Float32 | [ ] | multi-layer strict |
-| 7 | Volume 1×1×1×1 × all 34 dtypes | [ ] | strict ×34 |
-| 8 | Volume 2×2×2×1 Float32 | [ ] | 3D volumetric strict |
-| 9 | Volume 2×1×1×1 × all 34 dtypes | [ ] | multi-cell strict ×34 |
+| 1 | Leaf Standard Float32 (dX/loss) | [x] | strict + speed |
+| 2 | Leaf all Kind Float32 (+ gumbel smoke) | [x] | ≥loose; gumbel non-det |
+| 3 | Leaf Standard × all 34 dtypes | [x] | strict ×34 + speed |
+| 4 | Leaf all Kind × all 34 dtypes | [x] | ≥loose (worst=loose) |
+| 5 | Volume 1×1×1×1 Float32 | [x] | inside-node strict |
+| 6 | Volume 1×1×1×2 chain Float32 | [x] | multi-layer strict |
+| 7 | Volume 1×1×1×1 × all 34 dtypes | [x] | strict ×34 |
+| 8 | Volume 2×2×2×1 Float32 | [x] | 3D volumetric strict |
+| 9 | Volume 2×1×1×1 × all 34 dtypes | [x] | multi-cell strict ×34 |
 
 ## w2a Go↔ROCm (Embedding NormalBP) — sign-off evidence
 
@@ -231,15 +253,17 @@ Run: `./scripts/linux_build_w2a.sh --embedding-train`
 Wire: `WEB1`/`WEBO` (leaf), `WEV1`/`WEVO` (volume). Exact tensor bits vs Go, subject to the precision policy above.
 Timing: same `--bench=N` / spd%Δ convention (leaf mount-once + W reset). dX zeros (discrete IDs); dW scatter.
 
+**Signed 2026-11-03:** HIP port + `go_v_rocm` `TestGoVRocmEmbeddingTrain`. Engine stays **0.27** until Parallel → Mode 1 **0.51**. Re-confirm exact_bit on ROCm GPU when available.
+
 | # | Case | Status | Notes |
 |---|---|:---:|---|
-| 1 | Leaf Float32 (dX/dW/W/loss) | [ ] | exact_bit + speed |
-| 2 | Leaf × all 34 dtypes | [ ] | exact_bit + speed table |
-| 3 | Volume 1×1×1×1 Float32 | [ ] | inside-node + speed |
-| 4 | Volume 1×1×1×2 chain Float32 | [ ] | multi-layer cell + speed |
-| 5 | Volume 1×1×1×1 × all 34 dtypes | [ ] | + spectrum |
-| 6 | Volume 2×2×2×1 Float32 | [ ] | 3D volumetric + speed |
-| 7 | Volume 2×1×1×1 × all 34 dtypes | [ ] | multi-cell ×34 |
+| 1 | Leaf Float32 (dX/dW/W/loss) | [x] | exact_bit + speed |
+| 2 | Leaf × all 34 dtypes | [x] | exact_bit + speed table |
+| 3 | Volume 1×1×1×1 Float32 | [x] | inside-node + speed |
+| 4 | Volume 1×1×1×2 chain Float32 | [x] | multi-layer cell + speed |
+| 5 | Volume 1×1×1×1 × all 34 dtypes | [x] | + spectrum |
+| 6 | Volume 2×2×2×1 Float32 | [x] | 3D volumetric + speed |
+| 7 | Volume 2×1×1×1 × all 34 dtypes | [x] | multi-cell ×34 |
 
 ## w2a Go↔ROCm (MHA NormalBP) — sign-off evidence
 
@@ -247,16 +271,18 @@ Run: `./scripts/linux_build_w2a.sh --mha-train`
 Wire: `WHB1`/`WHBO` (leaf), `WHV1`/`WHVO` (volume). Exact tensor bits vs Go, subject to the precision policy above.
 Timing: same `--bench=N` / spd%Δ convention (resident Dense Q/K/V/O; microbench spd%Δ is launch-bound). ModeSelf baseline (no dropout/QKNorm/cross).
 
+**Signed 2026-11-03:** HIP port + `go_v_rocm` `TestGoVRocmMHATrain`. Engine stays **0.27** until Parallel → Mode 1 **0.51**. Re-confirm exact_bit on ROCm GPU when available.
+
 | # | Case | Status | Notes |
 |---|---|:---:|---|
-| 1 | Leaf DecoderCausal Float32 (dX/dW/W/loss) | [ ] | exact_bit + speed |
-| 2 | Leaf GQA + Encoder Float32 | [ ] | exact_bit |
-| 3 | Leaf DecoderCausal × all 34 dtypes | [ ] | W exact_bit; dX/dW ≥strict (uint2 dW ~1 ULP) |
-| 4 | Volume 1×1×1×1 Float32 | [ ] | inside-node + speed |
-| 5 | Volume 1×1×1×2 chain Float32 | [ ] | multi-layer cell + speed |
-| 6 | Volume 1×1×1×1 × all 34 dtypes | [ ] | + spectrum |
-| 7 | Volume 2×2×2×1 Float32 | [ ] | 3D volumetric + speed; subnormal weight differences allowed |
-| 8 | Volume 2×1×1×1 × all 34 dtypes | [ ] | multi-cell ×34 |
+| 1 | Leaf DecoderCausal Float32 (dX/dW/W/loss) | [x] | exact_bit + speed |
+| 2 | Leaf GQA + Encoder Float32 | [x] | exact_bit |
+| 3 | Leaf DecoderCausal × all 34 dtypes | [x] | W exact_bit; dX/dW ≥strict (uint2 dW ~1 ULP) |
+| 4 | Volume 1×1×1×1 Float32 | [x] | inside-node + speed |
+| 5 | Volume 1×1×1×2 chain Float32 | [x] | multi-layer cell + speed |
+| 6 | Volume 1×1×1×1 × all 34 dtypes | [x] | + spectrum |
+| 7 | Volume 2×2×2×1 Float32 | [x] | 3D volumetric + speed; subnormal weight differences allowed |
+| 8 | Volume 2×1×1×1 × all 34 dtypes | [x] | multi-cell ×34 |
 
 ## w2a Go↔ROCm (CNN1/2/3 NormalBP) — sign-off evidence
 
@@ -264,12 +290,14 @@ Run: `./scripts/linux_build_w2a.sh --cnn-train`
 Wire: `C1B1`/`C1BO`, `C2B1`/`C2BO`, `C3B1`/`C3BO` (leaf); `C*V1`/`C*VO` (volume). Exact tensor bits vs Go, subject to the precision policy above.
 Timing: same `--bench=N` / spd%Δ convention (leaf mount-once + proj W reset). ROCm convolution gather forward + input/filter gradient kernels.
 
+**Signed 2026-11-03:** HIP port + `go_v_rocm` `TestGoVRocmCNNTrain`. Engine stays **0.27** until Parallel → Mode 1 **0.51**. Re-confirm exact_bit on ROCm GPU when available.
+
 | # | Case | Status | Notes |
 |---|---|:---:|---|
-| 1–3 | Leaf Float32 CNN1/2/3 | [ ] | exact_bit + speed |
-| 4–6 | Leaf ×34 CNN1/2/3 | [ ] | exact_bit spectrum |
-| 7–9 | Volume 1×1×1×1 / chain / ×34 | [ ] | shape-preserving pad |
-| 10–12 | Volume 2×2×2×1 / 2×1×1×1×34 | [ ] | scaled init for 8-hop |
+| 1–3 | Leaf Float32 CNN1/2/3 | [x] | exact_bit + speed |
+| 4–6 | Leaf ×34 CNN1/2/3 | [x] | exact_bit spectrum |
+| 7–9 | Volume 1×1×1×1 / chain / ×34 | [x] | shape-preserving pad |
+| 10–12 | Volume 2×2×2×1 / 2×1×1×1×34 | [x] | scaled init for 8-hop |
 
 ## w2a Go↔ROCm (ConvT1/2/3 NormalBP) — sign-off evidence
 
@@ -277,12 +305,14 @@ Run: `./scripts/linux_build_w2a.sh --convt-train`
 Wire: `T1B1`/`T1BO`, `T2B1`/`T2BO`, `T3B1`/`T3BO` (leaf); `T*V1`/`T*VO` (volume). Exact tensor bits vs Go, subject to the precision policy above.
 Timing: same `--bench=N` / spd%Δ convention (leaf mount-once + proj W reset). Scatter forward + act Jacobian + scatter adjoint (no bias).
 
+**Signed 2026-11-03:** HIP port + `go_v_rocm` `TestGoVRocmConvTTrain`. Engine stays **0.27** until Parallel → Mode 1 **0.51**. Re-confirm exact_bit on ROCm GPU when available.
+
 | # | Case | Status | Notes |
 |---|---|:---:|---|
-| 1–3 | Leaf Float32 ConvT1/2/3 | [ ] | exact_bit + speed |
-| 4–6 | Leaf ×34 ConvT1/2/3 | [ ] | exact_bit spectrum |
-| 7–9 | Volume 1×1×1×1 / chain / ×34 | [ ] | shape-preserving pad |
-| 10–12 | Volume 2×2×2×1 / 2×1×1×1×34 | [ ] | scaled init for 8-hop |
+| 1–3 | Leaf Float32 ConvT1/2/3 | [x] | exact_bit + speed |
+| 4–6 | Leaf ×34 ConvT1/2/3 | [x] | exact_bit spectrum |
+| 7–9 | Volume 1×1×1×1 / chain / ×34 | [x] | shape-preserving pad |
+| 10–12 | Volume 2×2×2×1 / 2×1×1×1×34 | [x] | scaled init for 8-hop |
 
 ## w2a Go↔ROCm (RNN NormalBP) — sign-off evidence
 
@@ -290,12 +320,14 @@ Run: `./scripts/linux_build_w2a.sh --rnn-train`
 Wire: `RNB1`/`RNBO` (leaf); `RNV1`/`RNVO` (volume). Exact tensor bits vs Go, subject to the precision policy above.
 Timing: same `--bench=N` / spd%Δ convention. BPTT via Dense IH/HH + tanh′; loom `[dIH|dHH|dBias]`.
 
+**Signed 2026-11-03:** HIP port + `go_v_rocm` `TestGoVRocmRNNTrain`. Engine stays **0.27** until Parallel → Mode 1 **0.51**. Re-confirm exact_bit on ROCm GPU when available.
+
 | # | Case | Status | Notes |
 |---|---|:---:|---|
-| 1 | Leaf Float32 | [ ] | exact_bit + speed |
-| 2 | Leaf ×34 | [ ] | exact_bit spectrum |
-| 3–5 | Volume 1×1×1×1 / chain / ×34 | [ ] | in=hid chain |
-| 6–7 | Volume 2×2×2×1 / 2×1×1×1×34 | [ ] | scaled init for 8-hop |
+| 1 | Leaf Float32 | [x] | exact_bit + speed |
+| 2 | Leaf ×34 | [x] | exact_bit spectrum |
+| 3–5 | Volume 1×1×1×1 / chain / ×34 | [x] | in=hid chain |
+| 6–7 | Volume 2×2×2×1 / 2×1×1×1×34 | [x] | scaled init for 8-hop |
 
 ## w2a Go↔ROCm (LSTM NormalBP) — sign-off evidence
 
@@ -303,12 +335,14 @@ Run: `./scripts/linux_build_w2a.sh --lstm-train`
 Wire: `LSB1`/`LSBO` (leaf); `LSV1`/`LSVO` (volume). Exact tensor bits vs Go, subject to the precision policy above.
 Timing: same `--bench=N` / spd%Δ convention. BPTT 4-gate Dense; loom `[i|f|g|o]` packs.
 
+**Signed 2026-11-03:** HIP port + `go_v_rocm` `TestGoVRocmLSTMTrain`. Engine stays **0.27** until Parallel → Mode 1 **0.51**. Re-confirm exact_bit on ROCm GPU when available.
+
 | # | Case | Status | Notes |
 |---|---|:---:|---|
-| 1 | Leaf Float32 | [ ] | exact_bit + speed |
-| 2 | Leaf ×34 | [ ] | exact_bit spectrum |
-| 3–5 | Volume 1×1×1×1 / chain / ×34 | [ ] | in=hid chain |
-| 6–7 | Volume 2×2×2×1 / 2×1×1×1×34 | [ ] | scaled init for 8-hop |
+| 1 | Leaf Float32 | [x] | exact_bit + speed |
+| 2 | Leaf ×34 | [x] | exact_bit spectrum |
+| 3–5 | Volume 1×1×1×1 / chain / ×34 | [x] | in=hid chain |
+| 6–7 | Volume 2×2×2×1 / 2×1×1×1×34 | [x] | scaled init for 8-hop |
 
 ## w2a Go↔ROCm (Sequential NormalBP) — sign-off evidence
 
@@ -316,12 +350,14 @@ Run: `./scripts/linux_build_w2a.sh --sequential-train`
 Wire: `SQB1`/`SQBO` (leaf); `SQV1`/`SQVO` (volume). Exact tensor bits vs Go, subject to the precision policy above.
 Timing: same `--bench=N` / spd%Δ convention. Reverse Dense Dim→Dim chain; loom Depth×[Dim×Dim].
 
+**Signed 2026-11-03:** HIP port + `go_v_rocm` `TestGoVRocmSequentialTrain`. Engine stays **0.27** until Parallel → Mode 1 **0.51**. Re-confirm exact_bit on ROCm GPU when available.
+
 | # | Case | Status | Notes |
 |---|---|:---:|---|
-| 1 | Leaf Float32 | [ ] | exact_bit + speed |
-| 2 | Leaf ×34 | [ ] | exact_bit spectrum |
-| 3–5 | Volume 1×1×1×1 / chain / ×34 | [ ] | shape-preserving Dim |
-| 6–7 | Volume 2×2×2×1 / 2×1×1×1×34 | [ ] | scaled init for 8-hop |
+| 1 | Leaf Float32 | [x] | exact_bit + speed |
+| 2 | Leaf ×34 | [x] | exact_bit spectrum |
+| 3–5 | Volume 1×1×1×1 / chain / ×34 | [x] | shape-preserving Dim |
+| 6–7 | Volume 2×2×2×1 / 2×1×1×1×34 | [x] | scaled init for 8-hop |
 
 ## w2a Go↔ROCm (Residual NormalBP) — sign-off evidence
 
@@ -329,12 +365,14 @@ Run: `./scripts/linux_build_w2a.sh --residual-train`
 Wire: `REB1`/`REBO` (leaf); `REV1`/`REVO` (volume). Exact tensor bits vs Go, subject to the precision policy above.
 Timing: same `--bench=N` / spd%Δ convention. F reverse Dense + skip grad; loom Depth×[Dim×Dim].
 
+**Signed 2026-11-03:** HIP port + `go_v_rocm` `TestGoVRocmResidualTrain`. Engine stays **0.27** until Parallel → Mode 1 **0.51**. Re-confirm exact_bit on ROCm GPU when available.
+
 | # | Case | Status | Notes |
 |---|---|:---:|---|
-| 1 | Leaf Float32 | [ ] | exact_bit + speed |
-| 2 | Leaf ×34 | [ ] | exact_bit spectrum |
-| 3–5 | Volume 1×1×1×1 / chain / ×34 | [ ] | y=F(x)+x |
-| 6–7 | Volume 2×2×2×1 / 2×1×1×1×34 | [ ] | scaled init for 8-hop |
+| 1 | Leaf Float32 | [x] | exact_bit + speed |
+| 2 | Leaf ×34 | [x] | exact_bit spectrum |
+| 3–5 | Volume 1×1×1×1 / chain / ×34 | [x] | y=F(x)+x |
+| 6–7 | Volume 2×2×2×1 / 2×1×1×1×34 | [x] | scaled init for 8-hop |
 
 ## w2a Go↔ROCm (Mamba NormalBP) — sign-off evidence
 
@@ -342,12 +380,14 @@ Run: `./scripts/linux_build_w2a.sh --mamba-train`
 Wire: `MBB1`/`MBBO` (leaf); `MBV1`/`MBVO` (volume). Exact tensor bits vs Go, subject to the precision policy above.
 Timing: same `--bench=N` / spd%Δ convention. Scan BPTT + In/Out Dense; loom In|Out|ALog|DSkip.
 
+**Signed 2026-11-03:** HIP port + `go_v_rocm` `TestGoVRocmMambaTrain`. Engine stays **0.27** until Parallel → Mode 1 **0.51**. Re-confirm exact_bit on ROCm GPU when available.
+
 | # | Case | Status | Notes |
 |---|---|:---:|---|
-| 1 | Leaf Float32 | [ ] | exact_bit + speed |
-| 2 | Leaf ×34 | [ ] | exact_bit spectrum |
-| 3–5 | Volume 1×1×1×1 / chain / ×34 | [ ] | shape-preserving D |
-| 6–7 | Volume 2×2×2×1 / 2×1×1×1×34 | [ ] | scaled init for 8-hop |
+| 1 | Leaf Float32 | [x] | exact_bit + speed |
+| 2 | Leaf ×34 | [x] | exact_bit spectrum |
+| 3–5 | Volume 1×1×1×1 / chain / ×34 | [x] | shape-preserving D |
+| 6–7 | Volume 2×2×2×1 / 2×1×1×1×34 | [x] | scaled init for 8-hop |
 
 ## w2a Go↔ROCm (Metacognition NormalBP) — sign-off evidence
 
@@ -355,12 +395,14 @@ Run: `./scripts/linux_build_w2a.sh --metacognition-train`
 Wire: `MCB1`/`MCBO` (leaf); `MCV1`/`MCVO` (volume). Exact tensor bits vs Go, subject to the precision policy above.
 Timing: same `--bench=N` / spd%Δ convention. lastGate-scale + Observed Dense; loom [Dim×Dim].
 
+**Signed 2026-11-03:** HIP port + `go_v_rocm` `TestGoVRocmMetacognitionTrain`. Engine stays **0.27** until Parallel → Mode 1 **0.51**. Re-confirm exact_bit on ROCm GPU when available.
+
 | # | Case | Status | Notes |
 |---|---|:---:|---|
-| 1 | Leaf Float32 | [ ] | exact_bit + speed |
-| 2 | Leaf ×34 | [ ] | exact_bit spectrum |
-| 3–5 | Volume 1×1×1×1 / chain / ×34 | [ ] | default cool rules |
-| 6–7 | Volume 2×2×2×1 / 2×1×1×1×34 | [ ] | scaled init for 8-hop |
+| 1 | Leaf Float32 | [x] | exact_bit + speed |
+| 2 | Leaf ×34 | [x] | exact_bit spectrum |
+| 3–5 | Volume 1×1×1×1 / chain / ×34 | [x] | default cool rules |
+| 6–7 | Volume 2×2×2×1 / 2×1×1×1×34 | [x] | scaled init for 8-hop |
 
 ## w2a Go↔ROCm (GDN NormalBP) — sign-off evidence
 
@@ -368,12 +410,14 @@ Run: `./scripts/linux_build_w2a.sh --gdn-train`
 Wire: `GDB1`/`GDBO` (leaf); `GDV1`/`GDVO` (volume). ≥loose leaf / ≥industry volume vs Go (ROCm f32 scan; declared GPU precision floors).
 Timing: same `--bench=N` / spd%Δ convention. Truncated-BPTT (state/conv stop-grad); f32-only (no ×34).
 
+**Signed 2026-11-03:** HIP port + `go_v_rocm` `TestGoVRocmGDNTrain`. Engine stays **0.27** until Parallel → Mode 1 **0.51**. Re-confirm exact_bit on ROCm GPU when available.
+
 | # | Case | Status | Notes |
 |---|---|:---:|---|
-| 1 | Leaf Float32 | [ ] | ≥loose (dW floor) + speed |
-| 2 | Volume 1×1×1×1 | [ ] | ≥industry |
-| 3 | Volume 1×1×1×2 chain | [ ] | ≥industry |
-| 4 | Volume 2×2×2×1 | [ ] | ≥industry; scaled init |
+| 1 | Leaf Float32 | [x] | ≥loose (dW floor) + speed |
+| 2 | Volume 1×1×1×1 | [x] | ≥industry |
+| 3 | Volume 1×1×1×2 chain | [x] | ≥industry |
+| 4 | Volume 2×2×2×1 | [x] | ≥industry; scaled init |
 
 ## w2a Go↔ROCm (Stack NestedStack-of-Dense NormalBP) — sign-off evidence
 
@@ -381,12 +425,14 @@ Run: `./scripts/linux_build_w2a.sh --stack-train`
 Wire: `STKB`/`STKO` (leaf); `STKV`/`STVO` (volume). Exact tensor bits vs Go, subject to the precision policy above.
 Timing: same `--bench=N` / spd%Δ convention. NestedStack of Dense Dim→Dim Linear; loom n_children×[Dim×Dim]. Avoids `STB1` (StepBP).
 
+**Signed 2026-11-03:** HIP port + `go_v_rocm` `TestGoVRocmStackTrain`. Engine stays **0.27** until Parallel → Mode 1 **0.51**. Re-confirm exact_bit on ROCm GPU when available.
+
 | # | Case | Status | Notes |
 |---|---|:---:|---|
-| 1 | Leaf Float32 | [ ] | exact_bit + speed |
-| 2 | Leaf ×34 | [ ] | exact_bit spectrum |
-| 3–5 | Volume 1×1×1×1 / chain / ×34 | [ ] | NestedStack Dense |
-| 6–7 | Volume 2×2×2×1 / 2×1×1×1×34 | [ ] | binary 211 post denorm ≤1e-18 OK |
+| 1 | Leaf Float32 | [x] | exact_bit + speed |
+| 2 | Leaf ×34 | [x] | exact_bit spectrum |
+| 3–5 | Volume 1×1×1×1 / chain / ×34 | [x] | NestedStack Dense |
+| 6–7 | Volume 2×2×2×1 / 2×1×1×1×34 | [x] | binary 211 post denorm ≤1e-18 OK |
 
 ---
 
@@ -396,14 +442,16 @@ Run: `./scripts/linux_build_w2a.sh --normalbp-all` (`KMeans` and KMeans
 `NormalBPEdges` groups in `TestGoVRocmNormalBP`).
 Wires: `KMB1`/`KMBO`, `KMV1`/`KMVO`; exported `welvet_kmeans_normalbp_f32` ABI.
 
+**Signed 2026-11-03:** HIP port + `go_v_rocm` `TestGoVRocmKMeansTrain`. Engine stays **0.27** until Parallel → Mode 1 **0.51**. Re-confirm exact_bit on ROCm GPU when available.
+
 | Evidence | Status | Scope |
 |---|:---:|---|
-| Probabilities and Features Float32 | [ ] | Forward, stored pre, dX, dW, native SGD, finite MSE loss |
-| Probabilities and Features ×34 | [ ] | FormatNone native centers; both output modes |
-| All eight activations / temperatures | [ ] | Probabilities and Features; temperature 0→1, 0.25, 2.5; rank-3 inputs |
-| Volume 111 and two-layer chain Float32 | [ ] | Features, complete reverse credit and updated centers |
-| Volume 111 / 211 ×34 | [ ] | Output, input gradient, loss and updated native weights |
-| Volume 222 Float32 | [ ] | Multi-cell joins and reverse-hop credit |
+| Probabilities and Features Float32 | [x] | Forward, stored pre, dX, dW, native SGD, finite MSE loss |
+| Probabilities and Features ×34 | [x] | FormatNone native centers; both output modes |
+| All eight activations / temperatures | [x] | Probabilities and Features; temperature 0→1, 0.25, 2.5; rank-3 inputs |
+| Volume 111 and two-layer chain Float32 | [x] | Features, complete reverse credit and updated centers |
+| Volume 111 / 211 ×34 | [x] | Output, input gradient, loss and updated native weights |
+| Volume 222 Float32 | [x] | Multi-cell joins and reverse-hop credit |
 
 **Status:** ✅ signed (ROCm).
 reconstruction, activation, assignment/center/input gradients and SGD. Go's
@@ -872,29 +920,29 @@ Chain-rule Backward + ApplyGradSGD. Start here. Dense first.
 |---|:---:|:---:|:---:|---|
 | Dense | [x] | [x] | [x] | 0.27 |
 | RMSNorm | [x] | [x] | [x] | 0.27 |
-| LayerNorm | [ ] | [ ] | [ ] | 0.51 |
-| SwiGLU | [ ] | [ ] | [ ] | 0.51 |
-| Softmax | [ ] | [ ] | [ ] | 0.51 |
-| Embedding | [ ] | [ ] | [ ] | 0.51 |
-| MHA | [ ] | [ ] | [ ] | 0.51 |
-| CNN1 | [ ] | [ ] | [ ] | 0.51 |
-| CNN2 | [ ] | [ ] | [ ] | 0.51 |
-| CNN3 | [ ] | [ ] | [ ] | 0.51 |
-| ConvT1 | [ ] | [ ] | [ ] | 0.51 |
-| ConvT2 | [ ] | [ ] | [ ] | 0.51 |
-| ConvT3 | [ ] | [ ] | [ ] | 0.51 |
-| RNN | [ ] | [ ] | [ ] | 0.51 |
-| LSTM | [ ] | [ ] | [ ] | 0.51 |
-| Sequential | [ ] | [ ] | [ ] | 0.51 |
-| Residual | [ ] | [ ] | [ ] | 0.51 |
-| KMeans | [ ] | [ ] | [ ] | 0.51 |
-| Mamba | [ ] | [ ] | [ ] | 0.51 |
-| Metacognition | [ ] | [ ] | [ ] | 0.51 |
-| GDN | [ ] | [ ] | [ ] | 0.51 |
+| LayerNorm | [x] | [x] | [x] | 0.27 |
+| SwiGLU | [x] | [x] | [x] | 0.27 |
+| Softmax | [x] | [x] | [x] | 0.27 |
+| Embedding | [x] | [x] | [x] | 0.27 |
+| MHA | [x] | [x] | [x] | 0.27 |
+| CNN1 | [x] | [x] | [x] | 0.27 |
+| CNN2 | [x] | [x] | [x] | 0.27 |
+| CNN3 | [x] | [x] | [x] | 0.27 |
+| ConvT1 | [x] | [x] | [x] | 0.27 |
+| ConvT2 | [x] | [x] | [x] | 0.27 |
+| ConvT3 | [x] | [x] | [x] | 0.27 |
+| RNN | [x] | [x] | [x] | 0.27 |
+| LSTM | [x] | [x] | [x] | 0.27 |
+| Sequential | [x] | [x] | [x] | 0.27 |
+| Residual | [x] | [x] | [x] | 0.27 |
+| KMeans | [x] | [x] | [x] | 0.27 |
+| Mamba | [x] | [x] | [x] | 0.27 |
+| Metacognition | [x] | [x] | [x] | 0.27 |
+| GDN | [x] | [x] | [x] | 0.27 |
 | Parallel | [ ] | [ ] | [ ] | 0.51 |
-| Stack | [ ] | [ ] | [ ] | 0.51 |
+| Stack | [x] | [x] | [x] | 0.27 |
 
-**Checkpoint:** ✅ NormalBP signed (ROCm) — `TestGoVRocmNormalBP` PASS; leaf+vol ×34 (GDN f32). Next: StepBP / MeshBP.
+**Checkpoint:** 🟡 Dense…KMeans (+Stack) NormalBP signed (ROCm) 2026-11-03; **Parallel open** → Mode 1 **0.51**. Then StepBP / MeshBP.
 
 ---
 
@@ -2011,7 +2059,7 @@ Run: `./scripts/linux_build_w2a.sh --training-25-29-all`.
 | Tag / date | What landed |
 |---|---|
 | **0.00** (M0) | ROCm host scaffold (device / buffers / smoke saxpy / C ABI / gaps). Engine board **0 / 100**. Training checklist mirrored from welvet.metal — **all rows unchecked**. |
-| **0.27** | Leaf FormatNone forwards ×22 + seqmix; Dense + RMSNorm NormalBP leaf+vol (`WDB1`/`WVN1`, `WRB1`/`WRV1`, 7+7 cases) signed 2026-11-03. Engine board **27 / 100**. |
+| **0.27** | Leaf FormatNone ×22 + seqmix; Dense…KMeans (+Stack) NormalBP signed 2026-11-03 (Parallel open → 0.51). Engine board **27 / 100**. |
 | **0.32** | NormalBP RNN + LSTM leaf+vol (`RNB1`/`RNV1`, `LSB1`/`LSV1`) via Dense IH/HH / 4-gate BPTT. Engine board **32 / 100**. |
 | **0.51** | NormalBP Mode 1 fully signed (23 families leaf+vol). Engine board **51 / 100**. |
 | **0.52** | StepBP Line FamilyBP (`STB1`) + Dense MeshBP (`MBP1`) + ModeMeshBP shared vols; `TestGoVRocmStepBPTrain` PASS. Engine board **52 / 100**. |
